@@ -18,7 +18,7 @@ them from a docker image.
 
 ### Preparation
 
-1. Download and install docker for your host plaform from the [docker
+1. Download and install docker for your platform from the [docker
    website](https://www.docker.com/)
 
 2. Make sure that the docker service is started
