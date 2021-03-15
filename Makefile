@@ -18,7 +18,7 @@ FSTAR_INCLUDE_DIRS = $(DY_HOME) $(DY_HOME)/symbolic
 
 FSTAR_FLAGS = --cmi \
   --cache_checked_modules --cache_dir $(CACHE_DIR) \
-  --already_cached "+Prims+FStar+LowStar+C+Spec.Loops+TestLib" \
+  --already_cached "+Prims +FStar +LowStar +C +Spec.Loops +TestLib" \
   $(addprefix --include ,$(FSTAR_INCLUDE_DIRS))
 
 FSTAR = $(FSTAR_HOME)/bin/fstar.exe $(FSTAR_FLAGS) $(OTHERFLAGS)
