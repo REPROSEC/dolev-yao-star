@@ -161,7 +161,10 @@ let attack () : LCrypto unit (pki ns)
 = let t0 = get() in
   let x = attacker () in
   print_trace ()
-  
+
+
+#set-options "--max_ifuel 2"
+
 let main =
   IO.print_string "======================\n";
   IO.print_string "   Needham-Schroeder  \n";
