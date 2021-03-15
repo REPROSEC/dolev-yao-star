@@ -26,13 +26,18 @@ them from a docker image.
 3. Pull the docker image for the case studies: in a terminal, run
    `docker pull foa3ucuvi85/custom-fstar-ocaml-emacs-docker:2.4-db812866`
 
-4. Start the image: `docker run -it -v </path/to/this/repository>:/home/build/dystar --name=fstar foa3ucuvi85/custom-fstar-ocaml-emacs-docker:2.4-db812866 /bin/bash`
+4. Start the image: `docker run -it -v </path/to/this/repository>:/home/build/dystar --rm --name=fstar foa3ucuvi85/custom-fstar-ocaml-emacs-docker:2.4-db812866 /bin/bash`
    (of course, you have to replace `</path/to/this/repository>` with the
    path of this repository, e.g., `/home/johndoe/dolev-yao-star`).
 
    Note: If you chose a different path inside the container (i.e., not
    `/home/build/dystar`), make sure to set the environment variable
    `DY_HOME` to that path (without a trailing `/`).
+
+   Note 2: If you get an error along the lines of _"The container name
+   "/fstar" is already in use by container [...]"_, run `docker rm
+   fstar` and then try again (or rename the new container, i.e.,
+   change `--name=fstar` to some other name).
 
 5. Now you should see a shell prompt inside the docker
    container. Switch to the core model directory with `cd dystar/`.
