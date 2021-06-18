@@ -48,7 +48,7 @@ let send_msg_2_helper #idx b a gx =
   let gy = dh_pk #isodh_global_usage #t1 #kl y in
   let new_ss_st = (ResponderSentMsg2 a gx gy y) in
   let new_ss = serialize_valid_session_st t1 b si 0 new_ss_st in
-  assert (is_eph_priv_key (t1+1) y b si 0); assert (exists si vi. is_eph_priv_key (t1+1) y b si vi);
+  assert (is_eph_priv_key (t1+1) y b si 0);
   trigger_event #isodh b (respond a b gx gy y); 
   let t2 = global_timestamp () in
   new_session #isodh #t2 b si 0 new_ss;
