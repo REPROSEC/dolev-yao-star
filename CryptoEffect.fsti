@@ -47,17 +47,28 @@ type wp_t (a:Type) =
     )
   }
 
+unfold
+let repr_wp' (a:Type) (wp:wp_t a) (s0:trace) (postcond:pure_post (result a & trace)) : pure_pre =
+    let crypto_postcond:post_t a = fun (x:result a) s1 -> grows s0 s1 ==> postcond (x, s1) in
+    let crypto_precond:pre_t = wp crypto_postcond in
+    let pure_precond:pure_pre = crypto_precond s0 in
+    pure_precond
+
+let wp_is_monotonic (a:Type) (wp:wp_t a) (s0:trace) : Lemma
+  (pure_wp_monotonic (result a & trace) (repr_wp' a wp s0))
+  = FStar.Monotonic.Pure.intro_pure_wp_monotonicity (repr_wp' a wp s0)
+
+unfold
+let repr_wp (a:Type) (wp:wp_t a) (s0:trace) : pure_wp (result a & trace) =
+  wp_is_monotonic a wp s0;
+  repr_wp' a wp s0
+
 (* A concrete low-level representation of Crypto functions as a state-passing function *)
 type repr (a:Type) (wp:wp_t a) =
   s0:trace ->
   PURE
   (result a & trace)
-  (fun (postcond:pure_post (result a & trace)) ->
-    let crypto_postcond:post_t a = fun (x:result a) s1 -> grows s0 s1 ==> postcond (x, s1) in
-    let crypto_precond:pre_t = wp crypto_postcond in
-    let pure_precond:pure_pre = crypto_precond s0 in
-    pure_precond
-  )
+  (repr_wp a wp s0)
 
 (* Return a value from a Crypto computation *)
 unfold
@@ -127,13 +138,13 @@ layered_effect {
 (* A lifting of PURE computations into CRYPTO *)
 unfold
 let lift_pure_crypto_wp (#a:Type) (wp:pure_wp a) : wp_t a =
-  FStar.Monotonic.Pure.wp_monotonic_pure ();
+  FStar.Monotonic.Pure.elim_pure_wp_monotonicity wp;
   fun p s0 -> wp (fun x -> p (Success x) s0)
 
 inline_for_extraction
 let lift_pure_dyerror (a:Type) (wp:pure_wp a) (f:eqtype_as_type unit -> PURE a wp)
 : repr a (lift_pure_crypto_wp wp)
-= FStar.Monotonic.Pure.wp_monotonic_pure ();
+= FStar.Monotonic.Pure.elim_pure_wp_monotonicity wp;
   fun s0 -> Success (f ()), s0
 
 sub_effect PURE ~> CRYPTO = lift_pure_dyerror
@@ -162,4 +173,3 @@ let trace_entry_at_injective_forall n:
 val trace_entry_at_before_now: idx:nat -> et:entry_t -> Crypto unit
   (requires fun t0 -> trace_entry_at idx et)
   (ensures fun t0 _ t1 ->  t0 == t1 /\ idx < trace_len t1)
-
