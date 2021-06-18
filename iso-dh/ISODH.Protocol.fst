@@ -70,7 +70,7 @@ let dh_shared_secret_lemma__ (x:bytes) (y:bytes) : Lemma ((CryptoLib.dh x (Crypt
     [SMTPat (CryptoLib.dh x (CryptoLib.dh_pk y)); SMTPat (CryptoLib.dh y (CryptoLib.dh_pk x))] 
 = CryptoLib.dh_shared_secret_lemma x y 
 
-val receive_msg_2_helper:
+val initiator_verify_signature:
   i:nat -> si:nat -> vi:nat -> 
   a:principal ->
   b:principal ->
@@ -87,7 +87,7 @@ val receive_msg_2_helper:
 			(corrupt_id i (P b) \/
    				    (exists y. k == CryptoLib.dh y gx /\ is_dh_shared_key i k a b /\ did_event_occur_before i b (respond a b gx gy y)))))
 
-let receive_msg_2_helper i si vi a b pkb x gx gy sg =
+let initiator_verify_signature i si vi a b pkb x gx gy sg =
    let sv = sigval_msg2 a gx gy in
    if verify #isodh_global_usage #i #(readers [P b]) #public pkb sv sg then (
      can_flow_to_public_implies_corruption i (P b);
@@ -96,9 +96,6 @@ let receive_msg_2_helper i si vi a b pkb x gx gy sg =
      readers_is_injective b;
      assert (forall y si vi. gy == (CryptoLib.dh_pk y) /\ is_eph_priv_key i y b si vi ==> is_eph_pub_key i gy b si vi); 
      assert (forall y idx si vi. is_eph_priv_key idx y b si vi /\ later_than i idx ==> is_eph_priv_key i y b si vi);
-     assert (spred i pkb sv ==> (exists y idx si vi. gy == (CryptoLib.dh_pk y) /\ is_eph_priv_key idx y b si vi /\ 
-					     later_than i idx /\ did_event_occur_before i b (respond a b gx gy y)));
-     assert (spred i pkb sv ==> (exists y si vi. gy == (CryptoLib.dh_pk y) /\ is_eph_pub_key i gy b si vi /\ did_event_occur_before i b (respond a b gx gy y))); 
      dh_key_label_lemma isodh_global_usage i gy;
      k)
    else error "sig verification failed"
@@ -120,7 +117,7 @@ let initiator_send_msg_3 a idx_session idx_msg =
       if b = b'' then (
       let gx = dh_pk #isodh_global_usage #t1 #(readers [V a idx_session vi]) x in
       let pkb : public_key isodh t1 b SIG "ISODH.sig_key" = pkb in
-      let k = receive_msg_2_helper t1 idx_session vi a b pkb x gx gy sg in
+      let k = initiator_verify_signature t1 idx_session vi a b pkb x gx gy sg in
       let new_ss_st = (InitiatorSentMsg3 b gx gy k) in
       let new_ss = serialize_valid_session_st t1 a idx_session vi new_ss_st in
       assert (is_eph_pub_key t1 gx a idx_session vi); assert (later_than (t1+1) t1);
