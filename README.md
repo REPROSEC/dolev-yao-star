@@ -1,8 +1,9 @@
 # DY*: A Modular Symbolic Verification Framework for Executable Cryptographic Protocol Code
 
-If you're specifically looking for the code referenced in our EuroS&P
-2021 submission, clone this repository and check out the tag
-`eurosp21` (`git checkout eurosp21`).
+The code in this branch is referenced in the 2021 paper "A
+Tutorial-Style Introduction to DY*" by Bhargavan, Bichhawat, Do,
+Hosseyni, Küsters, Schmitz, and Würtele. For the latest DY\* code,
+check out the `master` branch of this repository.
 
 ## Overview
 
