@@ -16,10 +16,13 @@ let initiator_send_msg_1 a b =
   let l = readers [P a; P b] in
   let msg1' : msg t2 l = serialize_valid_message t2 m l in
   let msg1'' = restrict msg1' (readers [P b]) in
+  let msg1''' = restrict msg1' (readers [P a]) in
+  assert (get_label nsl_key_usages msg1''' == get_label nsl_key_usages msg1');
   let pkb = get_public_key #nsl #t2 a b PKE "NSL.key" in 
   sk_label_lemma nsl_global_usage t2 pkb (readers [P b]);
-  let c_msg1 = pke_enc #nsl_global_usage #t2 pkb msg1'' in
-  let now = send #nsl #t2 a b c_msg1 in
+  let (|t3,n_pke|) = rand_gen #nsl (readers [P a]) (nonce_usage "PKE_NONCE") in
+  let c_msg1 = pke_enc #nsl_global_usage #t3 #(readers [P a]) pkb n_pke msg1'' in
+  let now = send #nsl #t3 a b c_msg1 in
   (si, now)
 
 val responder_receive_msg_1_helper:
@@ -60,15 +63,18 @@ val responder_send_msg_2_helper:
   } ->
   n_b:ns_nonce i a b{
     did_event_occur_before i b (respond a b n_a n_b)} ->
+  n_pke:pke_nonce nsl_global_usage i (readers [P b]) ->
   msg i public
 
-let responder_send_msg_2_helper #i b a pka n_a n_b =
+let responder_send_msg_2_helper #i b a pka n_a n_b n_pke =
   rand_is_secret #nsl_global_usage #i #(readers [P a; P b]) #(nonce_usage "NSL.nonce") n_a;
   let n_a:msg i (readers [P a; P b]) = n_a in
   let msg2 : msg i (readers [P a; P b]) = serialize_valid_message i (Msg2 n_a n_b b) (readers [P a; P b]) in
   let msg2' = restrict msg2 (readers [P a]) in
+  let msg2'' = restrict msg2 (readers [P b]) in
+  assert (get_label nsl_key_usages msg2'' == get_label nsl_key_usages msg2);
   sk_label_lemma nsl_global_usage i pka (readers [P a]);
-  let c_msg3 = pke_enc #nsl_global_usage #i pka msg2' in
+  let c_msg3 = pke_enc #nsl_global_usage #i pka n_pke msg2' in
   c_msg3
 
 let responder_send_msg_2 b msg_idx =
@@ -84,8 +90,8 @@ let responder_send_msg_2 b msg_idx =
   let new_ss_st = ResponderSentMsg2 a n_a n_b in
   let new_ss = serialize_valid_session_st t1 b si 0 new_ss_st in
   new_session #nsl #t1 b si 0 new_ss;
-  let t2 = global_timestamp () in
-  let c_msg2 = responder_send_msg_2_helper #t2 b a pka n_a n_b in
+  let (|t2,n_pke|) = rand_gen #nsl (readers [P b]) (nonce_usage "PKE_NONCE") in
+  let c_msg2 = responder_send_msg_2_helper #t2 b a pka n_a n_b n_pke in
   let now = send #nsl #t2 b a c_msg2 in
   (si, now)
 
@@ -112,15 +118,19 @@ let initiator_receive_msg_2_helper (i:nat) (a:principal) (b:principal) (c_msg2:m
   | _ -> error "decrypt failed"
   
 let initiator_send_msg_3_helper (#i:nat) (a:principal) (b:principal) (pkb: pub_key i b) (n_a: ns_nonce i a b)
-    (n_b: msg i (readers [P a]){did_event_occur_before i a (finishI a b n_a n_b) /\ n_b_pred i a b n_a n_b}) 
+    (n_b: msg i (readers [P a]){did_event_occur_before i a (finishI a b n_a n_b) /\ n_b_pred i a b n_a n_b})
+    (n_pke: pke_nonce nsl_global_usage i (readers [P a]))
   : msg i public
 = let l = get_label nsl_key_usages n_b in
-  let l_b =  (readers [P b]) in
+  let l_b =  (readers [P a;P b]) in
   flows_to_public_can_flow i l l_b;
   rand_is_secret #nsl_global_usage #i #(readers [P a; P b]) #(nonce_usage "NSL.nonce") n_b;
   let msg3 = serialize_valid_message i (Msg3 n_b a) l_b in
+  let msg3' = restrict msg3 (readers [P b]) in
+  let msg3'' = restrict msg3 (readers [P a]) in
+  assert (get_label nsl_key_usages msg3'' == get_label nsl_key_usages msg3);
   sk_label_lemma nsl_global_usage i pkb (readers [P b]);
-  pke_enc #nsl_global_usage #i pkb msg3
+  pke_enc #nsl_global_usage #i pkb n_pke msg3'
 
 #push-options "--z3rlimit 100"
 
@@ -140,8 +150,8 @@ let initiator_send_msg_3 a idx_init_session msg_idx =
     rand_is_secret #nsl_global_usage #t1 #(readers [P a; P b]) #(nonce_usage "NSL.nonce") n_b;
     let new_ss = serialize_valid_session_st t1 a idx_init_session vi new_ss_st in
     update_session #nsl #t1 a idx_init_session vi new_ss;
-    let t1 = global_timestamp () in
-    let c_msg3 = initiator_send_msg_3_helper #t1 a b pkb n_a n_b in
+    let (|t1,n_pke|) = rand_gen #nsl (readers [P a]) (nonce_usage "PKE_NONCE") in
+    let c_msg3 = initiator_send_msg_3_helper #t1 a b pkb n_a n_b n_pke in
     let now = send #nsl #t1 a b c_msg3 in 
     now
   | _ -> error "parse error"

@@ -12,6 +12,8 @@ type labeled_at (i:nat) (l:label) = lbytes signal_global_usage i l
 type msg_at i l = msg signal_global_usage i l
 
 let signal_aead_key (i:nat) (l:label) = aead_key signal_global_usage i l "Signal.aead_key"
+let signal_aead_iv (i:nat) (l:label) = kdf_key signal_global_usage i l "Signal.aead_iv"
+let signal_aead_key_iv (i:nat) (l:label) = (signal_aead_key i l & msg_at i public)
 let signal_chain_key i l = kdf_key signal_global_usage i l "Signal.chain_key"
 let signal_root_key i l = kdf_key signal_global_usage i l "Signal.root_key"
 let signal_kdf_input i l = kdf_key signal_global_usage i l "Signal.kdf_input_key"
@@ -72,7 +74,7 @@ val x3dh_derive_root_key: #i:nat -> #l:label ->
 val ratchet_derive_aead_key0: #i:nat -> #l:label -> #l':label ->
   signal_root_key i l ->
   signal_kdf_input i l' ->
-  signal_aead_key i (kdf_meet l l')
+  signal_aead_key_iv i (kdf_meet l l')
 
 val ratchet_derive_new_keys: #i:nat -> #l:label -> #l':label ->
   signal_root_key i l ->
@@ -81,33 +83,30 @@ val ratchet_derive_new_keys: #i:nat -> #l:label -> #l':label ->
 
 val ratchet_derive_aead_key: #i:nat -> #l:label ->
   signal_chain_key i l ->
-  (signal_aead_key i l & signal_chain_key i l)
+  (signal_aead_key_iv i l & signal_chain_key i l)
 
 val aead_enc: #i:nat -> #l:label ->
-  k:signal_aead_key i l -> plain:msg_at i l ->
-  ad:msg_at i public{apred i k plain ad} ->
+  k:signal_aead_key_iv i l ->
+  plain:msg_at i l ->
+  ad:msg_at i public{
+    let (k,iv) = k in apred i "Signal.aead_key" k plain ad} ->
   msg_at i public
 
 val aead_dec: #i:nat -> #l:label ->
-  k:signal_aead_key i l -> cipher:msg_at i public ->  ad:msg_at i public ->
+  k:signal_aead_key_iv i l ->
+  cipher:msg_at i public ->  ad:msg_at i public ->
   Pure (result (msg_at i l))
        (requires (True))
        (ensures (fun r -> match r with
-		       | Success p -> can_flow i l public \/ apred i k p ad
+		       | Success p -> let (k,iv) = k in can_flow i l public \/ apred i "Signal.aead_key" k p ad
 		       | Error _ -> True))
 
 
 
 let signal_msg0_key_r (i:nat) (a:principal) (b:principal) (sid:nat) (spk:bytes) (opk:bytes) =
-  k:bytes{is_signal_aead_key i k (x3dh_key_label_r a sid b spk opk)}
+    signal_aead_key_iv i (x3dh_key_label_r a sid b spk opk)
 
 
 let signal_msg0_key_i (i:nat) (a:principal) (b:principal) (sid:nat) (spk:bytes) (opk:bytes) =
-  k:bytes{is_signal_aead_key i k (x3dh_key_label_i a sid b spk opk)}
+    signal_aead_key_iv i (x3dh_key_label_i a sid b spk opk)
 
-val signal_msg0_key_i_later_lemma: (i:nat)-> j:nat -> (a:principal) ->(b:principal)-> (sid:nat)-> (spk:bytes)-> (opk:bytes)->k:signal_msg0_key_i i a b sid spk opk ->
-  Lemma (later_than j i ==> is_signal_aead_key j k (x3dh_key_label_i a sid b spk opk))
-  
-val signal_msg0_key_r_later_lemma: (i:nat)-> j:nat -> (a:principal) ->(b:principal)-> (sid:nat)-> (spk:bytes)-> (opk:bytes)->k:signal_msg0_key_r i a b sid spk opk ->
-  Lemma (later_than j i ==> is_signal_aead_key j k (x3dh_key_label_r a sid b spk opk))
-  

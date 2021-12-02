@@ -1,3 +1,5 @@
+/// NS.Messages (implementation)
+/// =============================
 module NS.Messages
 
 open SecrecyLabels
@@ -37,9 +39,9 @@ let parse_message (m:bytes) =
     Success (Msg3 n_b))
   else Error "incorrect tag"
 
-let ns_key_usages : A.key_usages = A.none_key_usages
+let ns_key_usages : A.key_usages = A.default_key_usages
 
-let ppred (i:nat) pk m =
+let ppred (i:nat) s pk m =
     (exists p. A.get_sk_label ns_key_usages pk == readers [P p] /\
     (match parse_message m with
     | Success (Msg2 n_a n_b) ->
@@ -50,9 +52,10 @@ let ppred (i:nat) pk m =
        (was_rand_generated_before i n_a (readers [P a; P p]) (nonce_usage "NS.nonce"))
     | Success (Msg3 n_b) -> True
     | _ -> False))
-let apred i k m ad = True
-let spred i k m = True
-let mpred i k m = True
+
+let apred i s k m ad = True
+let spred i s k m = True
+let mpred i s k m = True
 
 let ns_usage_preds : A.usage_preds = {
   A.can_pke_encrypt = ppred;

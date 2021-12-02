@@ -1,3 +1,5 @@
+/// SecurityLemmas
+/// ===============
 module SecurityLemmas
 
 open SecrecyLabels
@@ -8,7 +10,7 @@ open LabeledCryptoAPI
 open LabeledRuntimeAPI
 module Att = AttackerAPI
 
-let contains_corrupted_version_at (idx:nat) (p:id) =
+let contains_corrupted_version_at (idx:timestamp) (p:id) =
     exists p' s' v'. (was_corrupted_before idx p' s' v' /\ covers p (V p' s' v'))
 
 let corrupt_pred =
@@ -18,7 +20,7 @@ let corrupt_at i : corrupt_pred =
     covers_is_transitive ();
     contains_corrupted_version_at i
 
-val publishable_readers_implies_corruption: #i:nat -> l:list id ->
+val publishable_readers_implies_corruption: #i:timestamp -> l:list id ->
     Lemma (can_flow i (readers l) public ==> (exists id. can_read id (readers l) /\ corrupt_at i id))
 
 val attacker_preserves_validity: pr:preds -> t0:trace -> t1:trace ->
@@ -27,20 +29,18 @@ val attacker_preserves_validity: pr:preds -> t0:trace -> t1:trace ->
 
 val attacker_only_knows_publishable_values: pr:preds -> b:bytes ->
     LCrypto unit pr (requires (fun tr -> True))
-		    (ensures (fun tr0 _ tr1 -> tr0 == tr1 /\ 
-			     (Att.attacker_knows_at (trace_len tr0) b ==> is_publishable pr.global_usage (trace_len tr0) b)))
+                    (ensures (fun tr0 _ tr1 -> tr0 == tr1 /\
+                             (Att.attacker_knows_at (trace_len tr0) b ==> is_publishable pr.global_usage (trace_len tr0) b)))
 
 val secrecy_lemma: #pr:preds -> b:bytes ->
     LCrypto unit pr (requires (fun t0 -> True))
-		    (ensures (fun t0 _ t1 -> t0 == t1 /\
-			     (forall ids. (is_labeled pr.global_usage (trace_len t0) b (readers ids) /\
-				     Att.attacker_knows_at (trace_len t0) b) ==>
-				     (exists id. List.Tot.mem id ids /\ corrupt_at (trace_len t0) id))))
+                    (ensures (fun t0 _ t1 -> t0 == t1 /\
+                             (forall ids. (is_labeled pr.global_usage (trace_len t0) b (readers ids) /\
+                                     Att.attacker_knows_at (trace_len t0) b) ==>
+                                     (exists id. List.Tot.mem id ids /\ corrupt_at (trace_len t0) id))))
 
 val secrecy_join_label_lemma: #pr:preds -> b:bytes -> LCrypto unit pr (requires (fun t0 -> True))
-			      (ensures (fun t0 _ t1 -> t0 == t1 /\ 
-				       (forall l l'. is_labeled pr.global_usage (trace_len t0) b (join (readers [l]) (readers [l'])) /\
-						Att.attacker_knows_at (trace_len t0) b ==> 
-						(corrupt_at (trace_len t0) l \/ corrupt_at (trace_len t0) l'))))
-
-
+                              (ensures (fun t0 _ t1 -> t0 == t1 /\
+                                       (forall l l'. is_labeled pr.global_usage (trace_len t0) b (join (readers [l]) (readers [l'])) /\
+                                                Att.attacker_knows_at (trace_len t0) b ==>
+                                                (corrupt_at (trace_len t0) l \/ corrupt_at (trace_len t0) l'))))

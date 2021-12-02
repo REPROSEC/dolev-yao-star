@@ -1,14 +1,17 @@
+/// GlobalRuntimeLib (implementation)
+/// ==================================
 module GlobalRuntimeLib
 
 open SecrecyLabels
 open CryptoLib
 module W = FStar.Monotonic.Witnessed
-friend CryptoLib // in order to get access to mk_rand and sprint_bytes
+friend CryptoLib // in order to get access to mk_rand and sprint_bytes and sprint_generated_rand
 open CryptoEffect
 friend CryptoEffect //in order to get access to c_get
+friend SecrecyLabels // in order to get access to sprint_id
 
 val discard: bool -> Crypto unit (requires (fun t0 -> True))
-		   (ensures (fun t0 _ t1 -> t0 == t1))
+                   (ensures (fun t0 _ t1 -> t0 == t1))
 let discard _ = ()
 let tot_print_string s = IO.debug_print_string s
 
@@ -35,13 +38,13 @@ let sprint_entry (i:nat) (e:entry_t) =
   | SetState p v ns -> "SetState "^p^": \n    "^sprint_session_state_i "\n    " 0 v ns)
 
 val print_seq_entry: i:nat -> s:Seq.seq entry_t -> Crypto unit
-		     (requires fun t0 -> True)
-		     (ensures fun t0 _ t1 -> t0 == t1)
-		     (decreases (Seq.length s - i))
+                     (requires fun t0 -> True)
+                     (ensures fun t0 _ t1 -> t0 == t1)
+                     (decreases (Seq.length s - i))
 let rec print_seq_entry (i:nat) (s:Seq.seq entry_t) =
   if i >= Seq.length s then ()
   else (print_string (sprint_entry i s.[i]);
-	print_string "\n";
+        print_string "\n";
         print_seq_entry (i+1) s)
 
 let print_trace () =
@@ -58,7 +61,7 @@ let corrupt_id (ts:timestamp) (x:id) : Type0 =
     exists p' s' v'. (was_corrupted_before ts p' s' v' /\ covers x (V p' s' v'))
 
 let corrupt_id_lemma ts x = ()
-let corrupt_id_covers (ts:nat) (x:id) (y:id) = () 
+let corrupt_id_covers (ts:timestamp) (x:id) (y:id) = ()
 
 #push-options "--z3rlimit 200"
 let gen l u =
@@ -102,9 +105,9 @@ let receive_i i p2 =
   let t0 = c_get() in
   match Seq.index t0 i with
   | Message p1 p' m ->
-	let pr = trace_entry_at_pred i (Message p1 p' m) in
-	assert (pr t0);
-	witness pr; assert (witnessed pr);
+        let pr = trace_entry_at_pred i (Message p1 p' m) in
+        assert (pr t0);
+        witness pr; assert (witnessed pr);
         assert(trace_entry_at i (Message p1 p' m));
         assert(t0.[i] == Message p1 p' m);
         assert(was_message_sent_at i p1 p' m);
@@ -151,10 +154,10 @@ let rec get_last_state_before i p =
         let jo = get_last_state_before (i-1) p in
         match jo with
         | Some (j,v',s') -> assert (state_was_set_at j p v' s');
-			   assert (forall v' s'. ~ (state_was_set_at i p v' s'));
-			   Some (j,v',s')
+                           assert (forall v' s'. ~ (state_was_set_at i p v' s'));
+                           Some (j,v',s')
         | None -> (assert (forall j s. j <= (i-1) ==> ~ (state_was_set_at j p v s));
-		  assert (state_was_set_at i p' v s);
+                  assert (state_was_set_at i p' v s);
                   None)
       ) else (
         assert (state_was_set_at i p' v s);

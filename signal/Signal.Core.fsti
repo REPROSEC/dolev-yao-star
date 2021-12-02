@@ -47,7 +47,7 @@ val respond: #i:nat -> #p:principal -> #sid:nat -> #sid':nat -> #peer:principal 
     (their_identity_pub_key: signal_identity_pub_key i (readers [P peer])) ->
     (their_ephemeral_pub_key0:msg_at i public) ->
     (their_ephemeral_pub_key1:msg_at i public) ->
-    (r:((*signal_aead_key i (x3dh_key_label_r p sid peer their_ephemeral_pub_key0 their_ephemeral_pub_key1)*)
+    (r:((*signal_aead_key_iv i (x3dh_key_label_r p sid peer their_ephemeral_pub_key0 their_ephemeral_pub_key1)*)
     signal_msg0_key_r i p peer sid  their_ephemeral_pub_key0 their_ephemeral_pub_key1 &
 		 signal_root_key i (dh_secret_label0 p their_ephemeral_pub_key1) &
 		 signal_chain_key i (dh_secret_label0 p their_ephemeral_pub_key1)){
@@ -61,7 +61,7 @@ val dh_ratchet : #i:nat -> #l:label -> #l':label ->
     (root_key:signal_root_key i l) ->
     (our_ephemeral_priv_key:signal_onetimepre_key i l') ->
     (their_ephemeral_pub_key:msg_at i public) ->
-    (r:(signal_aead_key i (kdf_meet l (join l' (get_dhkey_label signal_key_usages their_ephemeral_pub_key))) &
+    (r:(signal_aead_key_iv i (kdf_meet l (join l' (get_dhkey_label signal_key_usages their_ephemeral_pub_key))) &
 		 signal_root_key i ((join l' (get_dhkey_label signal_key_usages their_ephemeral_pub_key))) &
 		 signal_chain_key i ((join l' (get_dhkey_label signal_key_usages their_ephemeral_pub_key)))){
 	let (aek,rk,ck) = r in 
@@ -72,13 +72,13 @@ val dh_ratchet : #i:nat -> #l:label -> #l':label ->
 
 val kdf_ratchet : #i:nat -> #l:label ->
     (signal_chain_key i l) ->
-    Tot (signal_aead_key i l &
+    Tot (signal_aead_key_iv i l &
 	 signal_chain_key i l)
 
 val encrypt: #i:nat -> #l:label -> #p:principal -> #si:nat -> #vi:nat ->
     (our_identity_pub_key:signal_identity_pub_key i (readers [P p])) ->
     (their_identity_pub_key:msg_at i public) ->
-    (msg_key:signal_aead_key i l) ->
+    (msg_key:signal_aead_key_iv i l) ->
     (our_ephemeral_pub_key:signal_onetimepre_pub_key i (readers [V p si vi])) ->
     (prev_counter:nat) -> (counter:nat) ->
     (plaintext:msg_at i l) ->
@@ -88,7 +88,7 @@ val decrypt: #i:nat -> #l:label ->
     (our_identity_pub_key:msg_at i public) ->
     (their_identity_pub_key:msg_at i public) ->
     (their_ephemeral_pub_key:msg_at i public) ->
-    (msg_key:signal_aead_key i l) ->
+    (msg_key:signal_aead_key_iv i l) ->
     (prev_counter:nat) -> (counter:nat) ->
     (ciphertext:msg_at i public)  ->
     Pure (result (msg_at i l))
@@ -106,7 +106,7 @@ val decrypt0: #i:nat -> #l:label -> #l':label -> #peer:principal ->
     (our_identity_pub_key:msg_at i public) ->
     (their_identity_pub_key:signal_identity_pub_key i (readers [P peer])) ->
     (their_ephemeral_pub_key: msg_at i public) ->
-    (msg_key:signal_aead_key i (kdf_meet l l')) ->
+    (msg_key:signal_aead_key_iv i (kdf_meet l l')) ->
     (prev_counter:nat) -> (counter:nat) ->
     (ciphertext:msg_at i public)  ->
     Pure (result (msg_at i (kdf_meet l l')))

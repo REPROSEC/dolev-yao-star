@@ -2,6 +2,7 @@
 /// ==============================
 module NS.Protocol
 
+#push-options "--z3rlimit 200 --max_fuel 2 --max_ifuel 2"
 let initiator_send_msg_1 a b =
   let si = new_session_number #ns a in
   let (|t0, n_a|) = rand_gen #ns (readers [P a; P b]) (nonce_usage "NS.nonce") in
@@ -16,11 +17,20 @@ let initiator_send_msg_1 a b =
   let l = readers [P a; P b] in
   let msg1' : msg t2 l = serialize_valid_message t2 m l in
   let msg1'' = restrict msg1' (readers [P b]) in
-  let pkb = get_public_key #ns #t2 a b PKE "NS.key" in 
+  let msg1''' = restrict msg1' (readers [P a]) in
+  assert (get_label ns_key_usages msg1'' == get_label ns_key_usages msg1');
+  assert (get_label ns_key_usages msg1''' == get_label ns_key_usages msg1');
+  assert (can_flow t2 (get_label ns_key_usages msg1') (readers [P a; P b]));
+  assert (can_flow t2 (get_label ns_key_usages msg1'') (readers [P b]));
+  assert (can_flow t2 (get_label ns_key_usages msg1''') (readers [P a]));
+  let pkb = get_public_key #ns #t2 a b PKE "NS.key" in
   sk_label_lemma ns_global_usage t2 pkb (readers [P b]);
-  let c_msg1 = pke_enc #ns_global_usage #t2 pkb msg1'' in
-  let now = send #ns #t2 a b c_msg1 in
+  let (|t3,n_msg1|) = rand_gen #ns (readers [P a]) (nonce_usage "PKE_NONCE") in
+  assert (ppred t3 "NS.Key" pkb msg1');
+  let c_msg1 = pke_enc #ns_global_usage #t3 #(readers [P a]) pkb n_msg1 msg1' in
+  let now = send #ns #t3 a b c_msg1 in
   (si, now)
+#pop-options
 
 val responder_receive_msg_1_helper:
   #i:nat ->
@@ -60,15 +70,18 @@ val responder_send_msg_2_helper:
   } ->
   n_b:ns_nonce i a b{
     did_event_occur_before i b (respond a b n_a n_b)} ->
+  n_pke:pke_nonce ns_global_usage i (readers [P b]) ->
   msg i public
 
-let responder_send_msg_2_helper #i b a pka n_a n_b =
+let responder_send_msg_2_helper #i b a pka n_a n_b n_pke =
   rand_is_secret #ns_global_usage #i #(readers [P a; P b]) #(nonce_usage "NS.nonce") n_a;
   let n_a:msg i (readers [P a; P b]) = n_a in
   let msg2 : msg i (readers [P a; P b]) = serialize_valid_message i (Msg2 n_a n_b) (readers [P a; P b]) in
   let msg2' = restrict msg2 (readers [P a]) in
+  let msg2'' = restrict msg2 (readers [P b]) in
+  assert (get_label ns_key_usages msg2'' == get_label ns_key_usages msg2);
   sk_label_lemma ns_global_usage i pka (readers [P a]);
-  let c_msg3 = pke_enc #ns_global_usage #i pka msg2' in
+  let c_msg3 = pke_enc #ns_global_usage #i pka n_pke msg2' in
   c_msg3
 
 let responder_send_msg_2 b msg_idx =
@@ -85,8 +98,9 @@ let responder_send_msg_2 b msg_idx =
   let new_ss = serialize_valid_session_st t1 b si 0 new_ss_st in
   new_session #ns #t1 b si 0 new_ss;
   let t2 = global_timestamp () in
-  let c_msg2 = responder_send_msg_2_helper #t2 b a pka n_a n_b in
-  let now = send #ns #t2 b a c_msg2 in
+  let (|t3,n_msg2|) = rand_gen #ns (readers [P b]) (nonce_usage "PKE_NONCE") in
+  let c_msg2 = responder_send_msg_2_helper #t3 b a pka n_a n_b n_msg2 in
+  let now = send #ns #t3 b a c_msg2 in
   (si, now)
 
 let n_b_pred i a b n_a n_b =
@@ -112,16 +126,20 @@ let initiator_receive_msg_2_helper (i:nat) (a:principal) (b:principal) (c_msg2:m
   | _ -> error "decrypt failed in receive msg2"
   
 let initiator_send_msg_3_helper (#i:nat) (a:principal) (b:principal) (pkb: pub_key i b) (n_a: ns_nonce i a b)
-    (n_b: msg i (readers [P a]){did_event_occur_before i a (finishI a b n_a n_b) /\ n_b_pred i a b n_a n_b}) 
+    (n_b: msg i (readers [P a]){did_event_occur_before i a (finishI a b n_a n_b) /\ n_b_pred i a b n_a n_b})
+    (n_pke: pke_nonce ns_global_usage i (readers [P a]))
   : msg i public
-= let l_b =  (readers [P b]) in
+= let l_b =  (readers [P a; P b]) in
   // This assume is needed because we cannot prove
   // that it is safe to send n_b to b (Lowe's attack).
   assume (is_msg ns_global_usage i n_b l_b);
   rand_is_secret #ns_global_usage #i #(readers [P a; P b]) #(nonce_usage "NS.nonce") n_b;
-  let msg3 = serialize_valid_message i (Msg3 n_b) l_b in
+  let msg3 : msg i (readers [P a; P b]) = serialize_valid_message i (Msg3 n_b) l_b in
+  let msg3' = restrict msg3 (readers [P b]) in
+  let msg3'' = restrict msg3 (readers [P a]) in
+  assert (get_label ns_key_usages msg3'' == get_label ns_key_usages msg3);
   sk_label_lemma ns_global_usage i pkb (readers [P b]);
-  pke_enc #ns_global_usage #i pkb msg3
+  pke_enc #ns_global_usage #i pkb n_pke msg3'
 
 #push-options "--z3rlimit 100"
 
@@ -141,9 +159,10 @@ let initiator_send_msg_3 a idx_init_session msg_idx =
     rand_is_secret #ns_global_usage #t1 #(readers [P a; P b]) #(nonce_usage "NS.nonce") n_b;
     let new_ss = serialize_valid_session_st t1 a idx_init_session vi new_ss_st in
     update_session #ns #t1 a idx_init_session vi new_ss;
-    let t1 = global_timestamp () in
-    let c_msg3 = initiator_send_msg_3_helper #t1 a b pkb n_a n_b in
-    let now = send #ns #t1 a b c_msg3 in 
+    let t2 = global_timestamp () in
+    let (|t3,n_msg3|) = rand_gen #ns (readers [P a]) (nonce_usage "PKE_NONCE") in
+    let c_msg3 = initiator_send_msg_3_helper #t3 a b pkb n_a n_b n_msg3 in
+    let now = send #ns #t3 a b c_msg3 in 
     now
   | _ -> error "parse error"
   

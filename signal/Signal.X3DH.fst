@@ -11,8 +11,8 @@ let serialize_x3dh_msg (i:nat) (m:x3dh_msg i) : msg_at i public =
   | X3DHMsg a ik ek0 ek1 pct ct c -> 
 	    A.concat #signal_global_usage #i #public (A.string_to_bytes #signal_global_usage #i a) 
 	      (A.concat #signal_global_usage #i #public ik (A.concat #signal_global_usage #i #public ek0 
-		(A.concat #signal_global_usage #i #public ek1 (A.concat #signal_global_usage #i #public (A.literal_to_bytes #signal_global_usage #i (Nat pct))
-		  (A.concat #signal_global_usage #i #public (A.literal_to_bytes #signal_global_usage #i (Nat ct)) c)))))
+		(A.concat #signal_global_usage #i #public ek1 (A.concat #signal_global_usage #i #public (A.nat_to_bytes #signal_global_usage #i 4 (pct))
+		  (A.concat #signal_global_usage #i #public (A.nat_to_bytes #signal_global_usage #i 4 (ct)) c)))))
 
 let parse_x3dh_msg (#i:nat) (msg:msg_at i public) : result (x3dh_msg i) =
   r <-- A.split #signal_global_usage #i #public msg; let (ta,rest) = r in
@@ -21,8 +21,8 @@ let parse_x3dh_msg (#i:nat) (msg:msg_at i public) : result (x3dh_msg i) =
   r <-- A.split #signal_global_usage #i #public rest; let (ek1,rest) = r in
   r <-- A.split #signal_global_usage #i #public rest; let (pct,rest) = r in
   r <-- A.split #signal_global_usage #i #public rest; let (ct,c) = r in
-  (match bytes_to_string ta, bytes_to_literal pct, bytes_to_literal ct with 
-  | Success a, Success (Nat pct), Success (Nat ct) -> Success (X3DHMsg a ik ek0 ek1 pct ct c)
+  (match bytes_to_string ta, bytes_to_nat pct, bytes_to_nat ct with 
+  | Success a, Success (pct), Success (ct) -> Success (X3DHMsg a ik ek0 ek1 pct ct c)
   | _ -> Error ("parse x3dh msg error"))
 
 (**
@@ -107,7 +107,7 @@ let can_label_of_msg_flow_to_l i p sid peer ek0 ek1 msg =
 val generate_and_send_out_msg: #now:nat -> #l:label -> #p:principal -> #peer:principal -> #sid:nat ->
     our_identity_pub_key:signal_identity_pub_key now (readers [P p]) -> 
     their_identity_pub_key:msg_at now public ->
-    msg_key:signal_aead_key now l ->
+    msg_key:signal_aead_key_iv now l ->
     our_ephemeral_pub_key0:msg_at now public ->
     our_ephemeral_pub_key1:signal_onetimepre_pub_key now (readers [V p sid 1]) ->
     msg:msg_at now l ->
@@ -137,7 +137,7 @@ let x3dh_initiate #i p peer msg =
   let now = global_timestamp () in
   let (msg_key, root_key, chain_key) = initiate #now #p #sid #peer our_identity_priv_key our_ephemeral_priv_key0 our_ephemeral_priv_key1 their_identity_pub_key their_signed_pub_key their_onetime_pub_key in 
   let l = x3dh_key_label_i p sid peer their_signed_pub_key their_onetime_pub_key in
-  let msg_key:signal_aead_key now l = msg_key in 
+  let msg_key:signal_aead_key_iv now l = msg_key in 
   let our_ephemeral_pub_key1 = priv_to_pub #now #(readers [V p sid 1]) #"Signal.one_time_pre_key" our_ephemeral_priv_key1 in
   can_label_of_msg_flow_to_l now p sid peer their_signed_pub_key their_onetime_pub_key msg;
   let our_ephemeral_pub_key0 = priv_to_pub #now #(readers [V p sid 0]) #"Signal.one_time_pre_key" our_ephemeral_priv_key0 in 
@@ -146,6 +146,8 @@ let x3dh_initiate #i p peer msg =
   let nst = Session peers root_key (Some send_st) None in
   new_session #signal #now p sid 1 (serialize_valid_session_st now p sid 1 nst);
   let i = global_timestamp () in
+  let (k,iv) = msg_key in
+  let msg_key = (k,iv) in
   let sidx = generate_and_send_out_msg #i #l #p #peer #sid
   our_identity_pub_key  their_identity_pub_key msg_key our_ephemeral_pub_key0 our_ephemeral_pub_key1 msg in
   print_string ("message sent from "^p^"\n");
@@ -192,3 +194,4 @@ let x3dh_respond p msg_idx =
        | _ -> error "decrypt0 failed in respond"))
     else error "identity public keys do not match"
   | _ -> error "parse error in respond"
+ 

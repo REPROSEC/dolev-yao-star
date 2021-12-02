@@ -1,3 +1,5 @@
+/// Signal.Messages (implementation)
+/// =================================
 module Signal.Messages
 
 let serialize_ad
@@ -8,8 +10,8 @@ let serialize_ad
     concat their_identity_pub_key
       (concat our_identity_pub_key
 	(concat (our_ephemeral_pub_key)
-	  (concat (literal_to_bytes (Nat prev_counter))
-	    (literal_to_bytes (Nat counter)))))
+	  (concat ((nat_to_bytes 4 prev_counter))
+	    ((nat_to_bytes 4 counter)))))
 
 let serialize_ad_injective ek1 pc1 c1 tik1 oik1 ek2 pc2 c2 tik2 oik2 =
   let ad1 = serialize_ad ek1 pc1 c1 tik1 oik1 in

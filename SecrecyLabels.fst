@@ -1,9 +1,13 @@
+/// SecrecyLabels (implementation)
+/// ===============================
 module SecrecyLabels
 
 let covers_is_reflexive s = ()
 
 let covers_is_transitive () = ()
 
+// Note that label_ (with underscore) is a type internal to this module, therefore "eqtype" is OK
+// here (the exposed type "label" (w/o underscore) is not eqtype.
 type label_:eqtype =
   | Public: label_
   | ReadableBy: list id -> label_
@@ -12,14 +16,14 @@ type label_:eqtype =
 
 let label = label_
 
-(** Pretty-print a id *)
+(** Pretty-print an id *)
 let sprint_id (i:id) : string =
   match i with
   | P p -> p
   | S p s -> p^"("^string_of_int s^")"
   | V p s v -> p^"("^string_of_int s^")"^"("^string_of_int v^")"
 
-(** Pretty-print a Label *)
+(** Pretty-print a label *)
 let rec sprint_label l =
   match l with
   | Public -> "Public"
@@ -43,33 +47,33 @@ let rec depth (l:label) =
 
 /// LESSTHANEQ OPERATIONS
 /// ---------------------
-/// 
+///
 (* A lexicographic ordering realation on list of integers *)
 let rec list_int_le (l1:list int) (l2:list int) : bool =
-  match l1, l2 with 
+  match l1, l2 with
   | [], _ -> true
   | hd::tl, hd'::tl' -> hd <= hd' && (if (hd = hd') then list_int_le tl tl' else true)
   | _, _ -> false
 
 let rec list_int_le_totality_lemma (l1:list int) (l2:list int) : Lemma (ensures (list_int_le l1 l2 \/ list_int_le l2 l1)) =
-  match l1, l2 with 
+  match l1, l2 with
   | [], _ -> ()
   | hd::tl, hd'::tl' -> list_int_le_totality_lemma tl tl'
   | _ -> ()
 
 let rec list_int_le_anti_symmetry_lemma (l1:list int) (l2:list int) : Lemma (ensures (list_int_le l1 l2 /\ list_int_le l2 l1 ==> l1 = l2)) =
-  match l1, l2 with 
+  match l1, l2 with
   | [], _ -> ()
   | hd::tl, hd'::tl' -> list_int_le_anti_symmetry_lemma tl tl'
   | _ -> ()
 
 let rec list_int_le_anti_symm_lemma (l1:list int) (l2:list int) : Lemma (ensures (list_int_le l1 l2 /\ l1 <> l2 ==> not (list_int_le l2 l1))) =
-  match l1, l2 with 
+  match l1, l2 with
   | [], _ -> ()
   | hd::tl, hd'::tl' -> list_int_le_anti_symm_lemma tl tl'
   | _ -> ()
 
-let rec list_int_le_transitivity_lemma (l1:list int) (l2:list int) (l3:list int) : 
+let rec list_int_le_transitivity_lemma (l1:list int) (l2:list int) (l3:list int) :
     Lemma (ensures (list_int_le l1 l2 /\ list_int_le l2 l3 ==> list_int_le l1 l3)) =
   match l1, l2, l3 with
   | [], _, _ -> ()
@@ -187,9 +191,9 @@ let append_length_inv_head
   (#a: Type)
   (left1 right1 left2 right2: list a)
 : Lemma (requires (left1 @ right1 == left2 @ right2 /\ List.Tot.length left1 == List.Tot.length left2))
-	(ensures (left1 == left2 /\ right1 == right2))
-	 [SMTPat (left1 @ right1); SMTPat (left2 @ right2)] =
-	 List.Tot.append_length_inv_head left1 right1 left2 right2
+        (ensures (left1 == left2 /\ right1 == right2))
+         [SMTPat (left1 @ right1); SMTPat (left2 @ right2)] =
+         List.Tot.append_length_inv_head left1 right1 left2 right2
 
 
 let rec id_list_to_list_int_inj (vl1 vl2:list id):
@@ -235,14 +239,27 @@ let public = Public
 let join l1 l2 = if label_le l1 l2 then Join l1 l2 else Join l2 l1
 let meet l1 l2 = if label_le l1 l2 then Meet l1 l2 else Meet l2 l1
 
+let rec unversion_ids (i:list id) : (list id) =
+  match i with 
+  | [] -> []
+  | (V p si vi)::tl -> (S p si)::(unversion_ids tl)
+  | hd::tl -> hd::(unversion_ids tl)
+
+let rec unversion l = 
+  match l with 
+  | ReadableBy ids -> ReadableBy (unversion_ids ids)
+  | Join l1 l2 -> Join (unversion l1) (unversion l2)
+  | Meet l1 l2 -> Meet (unversion l1) (unversion l2)
+  | Public -> Public
+
 let rec can_read i l = 
   match l with 
   | Public -> True
-  | ReadableBy ids -> List.Tot.mem i ids
+  | ReadableBy ids -> List.Tot.mem i ids // TODO KB Why don't we use covers (or contains_id) here?
   | Join l1 l2 -> can_read i l1 \/ can_read i l2
   | Meet l1 l2 -> can_read i l1 /\ can_read i l2
 
-let can_read_readers_lemma l i = ()  
+let can_read_readers_lemma l i = ()
 
 let can_read_public_lemma i = ()
 
@@ -255,9 +272,9 @@ let can_read_private_lemma i = ()
 let readers_is_injective a = ()
 
 let join_is_equal l1 l2 = le_totality_lemma label_comparable l1 l2;
-			  le_anti_symmetry_lemma label_comparable l1 l2
+                          le_anti_symmetry_lemma label_comparable l1 l2
 let meet_is_equal l1 l2 = le_totality_lemma label_comparable l1 l2;
-			  le_anti_symmetry_lemma label_comparable l1 l2
+                          le_anti_symmetry_lemma label_comparable l1 l2
 (* Can Flow Relation *)
 #set-options "--z3rlimit 100 --max_fuel 2 --max_ifuel 2"
 let rec can_flow_p (p:corrupt_pred) (ts:timestamp) (l1:label) (l2:label) =
@@ -279,7 +296,7 @@ let rec can_flow_p (p:corrupt_pred) (ts:timestamp) (l1:label) (l2:label) =
       | Meet l11 l12, Join l21 l22 -> can_flow_p p ts l1 l21 /\ can_flow_p p ts l1 l22 \/ (can_flow_p p ts l11 l2 /\ can_flow_p p ts l12 l2)
       | Join l11 l12, Join l21 l22 -> can_flow_p p ts l1 l21 /\ can_flow_p p ts l1 l22 \/ (can_flow_p p ts l11 l2 \/ can_flow_p p ts l12 l2)
 
-val corrupt_can_flow_to_public: p:corrupt_pred -> i:nat -> vid:list id ->
+val corrupt_can_flow_to_public: p:corrupt_pred -> i:timestamp -> vid:list id ->
     Lemma (ensures (contains_corrupt_id p i vid ==> can_flow_p p i (ReadableBy vid) public))
 let corrupt_can_flow_to_public p i ps = ()
 
@@ -306,10 +323,10 @@ let rec flows_to_public_can_flow p i (l1:label) (l2:label) =
       | Public, _ -> ()
       | ReadableBy ps1 , Public -> ()
       | ReadableBy ps1, ReadableBy ps2 -> ()
-      | ReadableBy ps, Join l21 l22 
+      | ReadableBy ps, Join l21 l22
       | ReadableBy ps, Meet l21 l22 -> flows_to_public_can_flow p i l1 l21; flows_to_public_can_flow p i l1 l22
       | Join l11 l12, Meet l21 l22 | Meet l11 l12, Meet l21 l22 | Join l11 l12, Join l21 l22 | Meet l11 l12, Join l21 l22
-	-> flows_to_public_can_flow p i l11 l2; flows_to_public_can_flow p i l12 l2; flows_to_public_can_flow p i l1 l21; flows_to_public_can_flow p i l1 l22
+        -> flows_to_public_can_flow p i l11 l2; flows_to_public_can_flow p i l12 l2; flows_to_public_can_flow p i l1 l21; flows_to_public_can_flow p i l1 l22
       | Join l11 l12, _ | Meet l11 l12, _ ->  flows_to_public_can_flow p i l11 l2; flows_to_public_can_flow p i l12 l2
 
 let flows_to_public_can_flow_forall p = ()
@@ -330,56 +347,61 @@ and can_flow_from_join_right p c l1 l2 l3 : Lemma (can_flow_p p c l2 l3 ==> can_
 
 let can_flow_from_join p i l1 l2 = ()
 let can_flow_join_public_lemma p i = ()
+
 let can_flow_join_public_lemma_forall_trace_index p = ()
 let can_flow_join_labels_public_lemma p i l1 l2 = can_flow_join_public_lemma p i
 
 let can_flow_to_join_forall p i = ()
 let can_flow_to_join_forall_trace_index p = ()
 
+let can_flow_meet_public_lemma p i = ()
+let can_flow_meet_forall_public_lemma p = ()
+let can_flow_from_meet_lemma p i = ()
 let can_flow_to_meet_forall p i = ()
+let can_flow_to_meet_forall_i p = ()
 
-let rec can_flow_to_private p i l = 
-  match l with 
+let rec can_flow_to_private p i l =
+  match l with
   | Public | ReadableBy _ -> () | Join l1 l2 | Meet l1 l2 -> can_flow_to_private p i l1; can_flow_to_private p i l2
 
 let rec can_flow_from_public p i l =
-  match l with 
+  match l with
   | Public | ReadableBy _ -> () | Join l1 l2 | Meet l1 l2 -> can_flow_from_public p i l1; can_flow_from_public p i l2
 
-let rec can_flow_flows_to_public p (i:nat) (l1:label) (l2:label) :
+let rec can_flow_flows_to_public p (i:timestamp) (l1:label) (l2:label) :
     Lemma ((can_flow_p p i l2 Public /\ can_flow_p p i l1 l2) ==> can_flow_p p i l1 Public) =
     match l1, l2 with
       | Public, _ -> ()
       | ReadableBy ps1 , Public -> ()
       | ReadableBy ps1, ReadableBy ps2 -> ()
-      | ReadableBy ps, Meet l21 l22 
+      | ReadableBy ps, Meet l21 l22
       | ReadableBy ps, Join l21 l22 -> can_flow_flows_to_public p i l1 l21; can_flow_flows_to_public p i l1 l22
       | Join l11 l12, Meet l21 l22 | Meet l11 l12, Meet l21 l22 | Join l11 l12, Join l21 l22 | Meet l11 l12, Join l21 l22
-	-> can_flow_flows_to_public p i l11 l2; can_flow_flows_to_public p i l12 l2; can_flow_flows_to_public p i l1 l21; can_flow_flows_to_public p i l1 l22
+        -> can_flow_flows_to_public p i l11 l2; can_flow_flows_to_public p i l12 l2; can_flow_flows_to_public p i l1 l21; can_flow_flows_to_public p i l1 l22
       | Join l11 l12, _ | Meet l11 l12, _ -> can_flow_flows_to_public p i l11 l2;can_flow_flows_to_public p i l12 l2
 
 let rec can_flow_transitive p i l1 l2 l3
-= match l1, l2, l3 with 
+= match l1, l2, l3 with
   | Public, _, _ -> ()
   | _, Public, _ -> flows_to_public_can_flow p i l1 l3
   | _, _, Public -> can_flow_flows_to_public p i l1 l2; flows_to_public_can_flow p i l1 l3
   | ReadableBy ps1,ReadableBy ps2,ReadableBy ps3 -> ()
-  | ReadableBy ps1, ReadableBy ps2, Meet l31 l32 | ReadableBy ps1, ReadableBy ps2, Join l31 l32 -> 
+  | ReadableBy ps1, ReadableBy ps2, Meet l31 l32 | ReadableBy ps1, ReadableBy ps2, Join l31 l32 ->
     can_flow_transitive p i l1 l2 l31; can_flow_transitive p i l1 l2 l32
-  | ReadableBy ps1, Join l21 l22, Public | ReadableBy ps1, Join l21 l22, ReadableBy _ 
+  | ReadableBy ps1, Join l21 l22, Public | ReadableBy ps1, Join l21 l22, ReadableBy _
   | ReadableBy ps1, Meet l21 l22, Public | ReadableBy ps1, Meet l21 l22, ReadableBy _ -> can_flow_transitive p i l1 l21 l3; can_flow_transitive p i l1 l22 l3
   | ReadableBy ps1, Join l21 l22, Meet l31 l32 | ReadableBy ps1, Meet l21 l22, Meet l31 l32
-  | ReadableBy ps1, Meet l21 l22, Join l31 l32 | ReadableBy ps1, Join l21 l22, Join l31 l32 -> 
+  | ReadableBy ps1, Meet l21 l22, Join l31 l32 | ReadableBy ps1, Join l21 l22, Join l31 l32 ->
     can_flow_transitive p i l1 l2 l31; can_flow_transitive p i l1 l2 l32; can_flow_transitive p i l1 l21 l3; can_flow_transitive p i l1 l22 l3
   | Join l11 l12, Public, _ | Join l11 l12, ReadableBy _, Public | Join l11 l12, ReadableBy _, ReadableBy _
-  | Meet l11 l12, Public, _ | Meet l11 l12, ReadableBy _, Public | Meet l11 l12, ReadableBy _, ReadableBy _ -> 
+  | Meet l11 l12, Public, _ | Meet l11 l12, ReadableBy _, Public | Meet l11 l12, ReadableBy _, ReadableBy _ ->
     can_flow_transitive p i l11 l2 l3; can_flow_transitive p i l12 l2 l3
   | Join l11 l12, ReadableBy _, Meet l31 l32 | Join l11 l12, ReadableBy _, Join l31 l32
-  | Meet l11 l12, ReadableBy _, Join l31 l32 | Meet l11 l12, ReadableBy _, Meet l31 l32 -> 
+  | Meet l11 l12, ReadableBy _, Join l31 l32 | Meet l11 l12, ReadableBy _, Meet l31 l32 ->
     can_flow_transitive p i l1 l2 l31; can_flow_transitive p i l1 l2 l32
   | Join l11 l12, Join l21 l22, Public | Join l11 l12, Join l21 l22, ReadableBy _
   | Join l11 l12, Meet l21 l22, Public | Join l11 l12, Meet l21 l22, ReadableBy _ | Meet l11 l12, Join l21 l22, Public
-  | Meet l11 l12, Join l21 l22, ReadableBy _ | Meet l11 l12, Meet l21 l22, Public | Meet l11 l12, Meet l21 l22, ReadableBy _ -> 
+  | Meet l11 l12, Join l21 l22, ReadableBy _ | Meet l11 l12, Meet l21 l22, Public | Meet l11 l12, Meet l21 l22, ReadableBy _ ->
     can_flow_transitive p i l1 l21 l3; can_flow_transitive p i l1 l22 l3; can_flow_transitive p i l11 l2 l3; can_flow_transitive p i l12 l2 l3
   | Join l11 l12, Join l21 l22, Meet l31 l32 | Join l11 l12, Join l21 l22, Join l31 l32 | Join l11 l12, Meet l21 l22, Meet l31 l32
   | Join l11 l12, Meet l21 l22, Join l31 l32 | Meet l11 l12, Join l21 l22, Meet l31 l32
@@ -400,3 +422,6 @@ let can_flow_to_public_implies_corruption p i l =
 let includes_corrupt_2_lemma_forall_trace_index p p1 p2 = ()
 
 let includes_corrupt_2_lemma_forall p = ()
+
+let can_flow_readers_to_join p = ()
+

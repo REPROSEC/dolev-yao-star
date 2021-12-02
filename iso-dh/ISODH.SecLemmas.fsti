@@ -1,6 +1,6 @@
-/// ISO_DH.SecurityLemmas
-/// ==================
-module ISODH.SecurityLemmas
+/// ISODH.SecLemmas
+/// ====================
+module ISODH.SecLemmas
 
 open SecrecyLabels
 open CryptoLib

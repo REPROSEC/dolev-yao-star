@@ -50,11 +50,11 @@ let main =
   IO.print_string "Needham-Schroeder-Lowe\n";
   IO.print_string "======================\n";
   let t0 = Seq.empty in
-  IO.print_string "Starting Benign 'Attacker'\n";
+  IO.print_string "Starting Benign Attacker:\n";
   assume(valid_trace (pki nsl) t0);
   let r,t1 = (reify (benign ()) t0) in
   (match r with
   | Error s -> IO.print_string ("ERROR: "^s^"\n")
-  | Success _ -> IO.print_string "Successful execution of Needham-Schroeder-Lowe protocol.\n");
-  IO.print_string "Finished Benign 'Attacker'\n"
+  | Success _ -> IO.print_string "PROTOCOL RUN (SUCCESS for jenkins): Successful execution of Needham-Schroeder-Lowe protocol.\n");
+  IO.print_string "Finished Benign Attacker:\n"
 

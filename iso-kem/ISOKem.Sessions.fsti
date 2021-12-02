@@ -1,3 +1,5 @@
+/// ISOKem.Sessions
+/// ================
 module ISOKem.Sessions
 
 open SecrecyLabels
@@ -36,7 +38,7 @@ let valid_session (i:nat) (p:principal) (si:nat) (vi:nat) (st:session_st) : Type
 				  A.is_publishable isokem_global_usage i gy /\
 				  A.can_flow i (A.get_label isokem_key_usages k) (readers [P p]) /\
 				  is_encapsulated_key i k gx p /\
-				  gy == pke_enc gx k
+				  (exists n. gy == pke_enc gx n k)
   | InitiatorSentMsg3 b gx gy k -> A.is_publishable isokem_global_usage i gx /\
 				  A.is_publishable isokem_global_usage i gy /\
 				  A.is_msg isokem_global_usage i k (readers [P p]) /\
@@ -72,17 +74,17 @@ let epred i s e =
     match e with
     | ("Initiate",[ta;tb;gx]) -> True
     | ("Respond",[ta;tb;gx;gy;k]) ->
-      (match bytes_to_literal tb, bytes_to_literal ta with
-       | Success (String b), Success (String a) ->
+      (match bytes_to_string tb, bytes_to_string ta with
+       | Success (b), Success (a) ->
 		 A.is_publishable isokem_global_usage i gx /\ A.is_publishable isokem_global_usage i gy /\ is_encapsulated_key i k gx b
        | _, _ -> False )
     | ("FinishI",[ta;tb;gx;gy;k]) ->
-      (match bytes_to_literal tb, bytes_to_literal ta with
-       | Success (String b), Success (String a) -> is_eph_pub_key i gx a /\ (A.corrupt_id i (P b) \/ did_event_occur_before i b (respond a b gx gy k))
+      (match bytes_to_string tb, bytes_to_string ta with
+       | Success (b), Success (a) -> is_eph_pub_key i gx a /\ (A.corrupt_id i (P b) \/ did_event_occur_before i b (respond a b gx gy k))
        | _, _ -> False )
     | ("FinishR",[ta;tb;gx;gy;k]) ->
-      (match bytes_to_literal ta, bytes_to_literal tb with
-	| Success (String a), Success (String b) -> A.corrupt_id i (P a) \/ did_event_occur_before i a (finishI a b gx gy k)
+      (match bytes_to_string ta, bytes_to_string tb with
+	| Success (a), Success (b) -> A.corrupt_id i (P a) \/ did_event_occur_before i a (finishI a b gx gy k)
        | _, _ -> False )
     | _ -> False
 let session_st_inv i p si vi st =

@@ -1,3 +1,5 @@
+/// Signal.SecurityProperties
+/// ==========================
 module Signal.SecurityProperties
 
 open SecrecyLabels
@@ -45,20 +47,20 @@ let is_msg0_key_r (i:nat) (a:principal) (b:principal) (k:bytes) =
 val x3dh_key_secret_i: i:nat -> a:principal -> sid:nat -> b:principal -> (spk:bytes)-> (opk:bytes) -> k:signal_msg0_key_i i a b sid spk opk -> LCrypto unit signal
     (requires fun t0 -> i == trace_len t0)
     (ensures fun t0 _ t1 -> t0 == t1 /\
-      (is_unknown_to_attacker_at (trace_len t0) k \/
+      (is_unknown_to_attacker_at (trace_len t0) (fst k) \/
        corrupt_at (trace_len t0) (V a sid 0) \/
        corrupt_at (trace_len t0) (P b)))
 val x3dh_key_secret_r: i:nat -> a:principal -> b:principal -> sid:nat -> spk:bytes -> opk:bytes -> k:signal_msg0_key_r i a b sid spk opk -> LCrypto unit signal
     (requires fun t0 -> i == trace_len t0 (*/\ is_msg0_key_r i a b k*))
     (ensures fun t0 _ t1 -> t0 == t1 /\
-      (is_unknown_to_attacker_at (trace_len t0) k \/
+      (is_unknown_to_attacker_at (trace_len t0) (fst k) \/
        corrupt_at (trace_len t0) (P a) \/
        corrupt_at (trace_len t0) (P b)))
 
 val x3dh_msg0_key_secret_r: i:nat -> a:principal -> b:principal -> sid:nat -> spk:bytes -> opk:bytes -> k:signal_msg0_key_r i a b sid spk opk -> LCrypto unit signal
     (requires fun t0 -> i == trace_len t0)
     (ensures fun t0 _ t1 -> t0 == t1 /\
-      (is_unknown_to_attacker_at (trace_len t0) k \/ // if the k is known at t0
+      (is_unknown_to_attacker_at (trace_len t0) (fst k) \/ // if the k is known at t0
       ((corrupt_at (trace_len t0) (P a) \/         // then a \/ b must be compromised at t0
         corrupt_at (trace_len t0) (P b)) /\
        (corrupt_at i (P a) \/                      // and either a \/ b was compromised already at (i/t0) (when the key was created)

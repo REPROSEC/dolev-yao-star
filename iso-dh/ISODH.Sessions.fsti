@@ -1,3 +1,5 @@
+/// ISODH.Sessions
+/// ===============
 module ISODH.Sessions
 
 open SecrecyLabels
@@ -68,19 +70,19 @@ let epred i s e =
     match e with
     | ("Initiate",[ta;tb;gx]) -> True
     | ("Respond",[ta;tb;gx;gy;y]) ->
-      (match bytes_to_literal tb, bytes_to_literal ta with
-       | Success (String b), Success (String a) -> A.is_publishable isodh_global_usage i gx /\ A.is_publishable isodh_global_usage i gy /\ 
+      (match bytes_to_string tb, bytes_to_string ta with
+       | Success (b), Success (a) -> A.is_publishable isodh_global_usage i gx /\ A.is_publishable isodh_global_usage i gy /\ 
 						  (exists si vi. is_eph_priv_key i y b si vi) /\ gy == dh_pk y 
        | _, _ -> False )
     | ("FinishI",[ta;tb;gx;gy;k]) ->
-      (match bytes_to_literal tb, bytes_to_literal ta with
-       | Success (String b), Success (String a) -> A.is_publishable isodh_global_usage i gx /\ A.is_publishable isodh_global_usage i gy /\ 
+      (match bytes_to_string tb, bytes_to_string ta with
+       | Success (b), Success (a) -> A.is_publishable isodh_global_usage i gx /\ A.is_publishable isodh_global_usage i gy /\ 
 						  (exists si vi. is_eph_pub_key i gx a si vi) /\ 
 						  (A.corrupt_id i (P b) \/ (exists y. k == dh y gx /\ is_dh_shared_key i k s b /\ did_event_occur_before i b (respond a b gx gy y)))
        | _, _ -> False )
     | ("FinishR",[ta;tb;gx;gy;k]) ->
-      (match bytes_to_literal ta, bytes_to_literal tb with
-	| Success (String a), Success (String b) -> A.corrupt_id i (P a) \/ (is_dh_shared_key i k a s /\ did_event_occur_before i a (finishI a b gx gy k))
+      (match bytes_to_string ta, bytes_to_string tb with
+	| Success (a), Success (b) -> A.corrupt_id i (P a) \/ (is_dh_shared_key i k a s /\ did_event_occur_before i a (finishI a b gx gy k))
        | _, _ -> False )
     | _ -> False
 let session_st_inv i p si vi st =

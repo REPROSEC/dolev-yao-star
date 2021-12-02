@@ -33,7 +33,14 @@ let x3dh_concat_r #i #l1 #l2 #l3 #l4 k1 k2 k3 k4 =
     let m3 = (kdf_mix #i #(kdf_meet (kdf_meet l1 l2) l3) #l4 m2 k4) in 
     m3
 
-let zz #i = literal_to_bytes #signal_global_usage #i (ByteSeq (Seq.empty))
+let zz #i : msg_at i public =
+    let zb = Seq.create 32 0uy in
+    bytestring_to_bytes #signal_global_usage #i zb
+
+let on #i : msg_at i public =
+    let zb = Seq.create 32 0uy in
+    let zb = zb.[31] <- 1uy in
+    bytestring_to_bytes #signal_global_usage #i zb
 
 let x3dh_derive_root_key #i #l ki =
     (expand #signal_global_usage #i #l ki (zz #i)) <: signal_root_key i l
@@ -44,20 +51,35 @@ let kdf_mix_root_key #i #l1 #l2 (k1:signal_root_key i l1) (k2:signal_root_key i 
 let ratchet_derive_aead_key0 #i #l #l' rk ss =
     let dk:signal_root_key i l' = (expand #signal_global_usage #i #l' ss (zz #i)) <: signal_root_key i l' in 
     let rat_key = kdf_mix_root_key #i #l #l' rk dk in 
-    let der_key = expand #signal_global_usage #i #(kdf_meet l l') rat_key (zz #i) in 
-    (expand #signal_global_usage #i #(kdf_meet l l') der_key (zz #i)) <: signal_aead_key i (kdf_meet l l')
-
+    let der_key = expand #signal_global_usage #i #(kdf_meet l l') rat_key (zz #i) in
+    let aekey = expand #signal_global_usage #i #(kdf_meet l l') der_key (zz #i) in
+    let aeiv = expand #signal_global_usage #i #(kdf_meet l l') der_key (on #i) in
+    assert (on #i == Signal.Messages.on);
+    assert (is_kdf_key signal_global_usage i der_key (kdf_meet l l') "Signal.chain_key");
+    assert (get_usage signal_global_usage.key_usages aeiv == signal_global_usage.key_usages.kdf_expand_usage "Signal.chain_key" der_key (on #i));
+    zz_on_disjoint_lemma ();
+    assert (signal_global_usage.key_usages.kdf_expand_usage "Signal.chain_key" der_key Signal.Messages.on ==
+	    Some (kdf_usage "Signal.aead_iv"));
+    assert (is_kdf_key signal_global_usage i aeiv (kdf_meet l l') "Signal.aead_iv");
+    let aeiv_public = extract #signal_global_usage #i #(kdf_meet l l') #(public) aeiv empty in
+    (aekey,aeiv_public)
+    
 let ratchet_derive_new_keys #i #l #l' rk ss =
     let root_key:signal_root_key i l' = (expand #signal_global_usage #i #l' ss (zz #i)) <: signal_root_key i l' in 
     let der_key:signal_chain_key i l' = expand #signal_global_usage #i #l' root_key (zz #i) in
     (root_key, der_key)
 
 let ratchet_derive_aead_key #i #l ck =
-    (expand #signal_global_usage #i #l ck (zz #i), ck)
+    let aekey = expand #signal_global_usage #i #l ck (zz #i) in
+    let aeiv = expand #signal_global_usage #i #l ck (on #i) in
+    zz_on_disjoint_lemma ();
+    assert (is_kdf_key signal_global_usage i aeiv l "Signal.aead_iv");
+    let aeiv_public = extract #signal_global_usage #i #l #(public) aeiv empty in
+    ((aekey, aeiv_public),ck)
 
-let aead_enc #i #l k p ad = aead_enc k p ad
+let aead_enc #i #l k p ad = let (k,iv) = k in aead_enc k iv p ad
 
-let aead_dec #i #l k c ad = aead_dec k c ad
+let aead_dec #i #l k c ad = let (k,iv) = k in aead_dec k iv c ad
 
 let  signal_msg0_key_i_later_lemma i j a b sid spk opk k = ()
 

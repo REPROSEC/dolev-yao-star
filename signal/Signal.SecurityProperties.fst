@@ -1,3 +1,5 @@
+/// Signal.SecurityProperties (implementation)
+/// ===========================================
 module Signal.SecurityProperties
 
 let msg_secret i a b m =
@@ -33,6 +35,7 @@ let x3dh_labeled_key_secret_i i j a sid b =
 
 let x3dh_key_secret_i i a sid b spk opk k =
   //assert (exists spk opk. is_labeled signal_global_usage i k (x3dh_key_label_i a sid b spk opk)); 
+  let (k,iv) = k in
   attacker_only_knows_publishable_values signal k;
   assert (attacker_knows_at i k ==> can_flow i (get_label signal_key_usages k) public); 
   x3dh_labeled_key_secret_i i i a sid b
@@ -58,6 +61,7 @@ let x3dh_labeled_key_secret_r i j a b =
 let x3dh_key_secret_r i a b sid spk opk k =  
   let len = global_timestamp () in
   let l = x3dh_key_label_r a sid b spk opk in
+  let (k,iv) = k in
   assert(is_signal_aead_key i k l);
   assert(is_aead_key signal_global_usage i k l "Signal.aead_key"); 
   assert(is_secret signal_global_usage  i k l (aead_usage "Signal.aead_key" ));
@@ -72,7 +76,7 @@ val x3dh_msg0_key_secret_r_helper: i:nat -> a:principal -> b:principal -> sid:na
  LCrypto unit signal
  (requires fun t0 -> i == trace_len t0)
     (ensures fun t0 _ t1 -> t0 == t1 /\
-      ( is_unknown_to_attacker_at (trace_len t0) k \/
+      ( is_unknown_to_attacker_at (trace_len t0) (fst k) \/
         ( corrupt_at i (P a) \/                      // and either a \/ b was compromised already at (i/t0) (when the key was created)
           corrupt_at i (P b) \/                      //     or either remote ephemeral key or (local onetime prekey/local signed prekey) must be compromised at t0
 	  (exists isid iv rsid rv. corrupt_at (trace_len t0) (V a rsid rv) \/          
@@ -80,8 +84,9 @@ val x3dh_msg0_key_secret_r_helper: i:nat -> a:principal -> b:principal -> sid:na
       ))
 
 //#push-options "--z3rlimit 200 --max_fuel 4 --max_ifuel 4"
-let x3dh_msg0_key_secret_r_helper i a b sid spk opk k = 
+let x3dh_msg0_key_secret_r_helper i a b sid spk opk k_iv = 
   let len = global_timestamp () in
+  let (k,iv) = k_iv in
   assert(is_msg0_key_r i a b k);
   assert( is_labeled signal_global_usage i k (x3dh_key_label_r a sid b spk opk));
   attacker_only_knows_publishable_values signal k;
@@ -90,18 +95,19 @@ let x3dh_msg0_key_secret_r_helper i a b sid spk opk k =
   x3dh_labeled_key_secret_r i i a b;
   assert(is_unknown_to_attacker_at i k \/
          corrupt_at i (P a) \/ corrupt_at i (P b));
-  x3dh_key_secret_r i a b sid spk opk k
+  x3dh_key_secret_r i a b sid spk opk k_iv
  
   
 
 #push-options "--z3rlimit 500 --max_fuel 8 --max_ifuel 8"
-let x3dh_msg0_key_secret_r i a b sid spk opk k = 
+let x3dh_msg0_key_secret_r i a b sid spk opk k_iv = 
   let len = global_timestamp () in 
-  x3dh_key_secret_r i a b sid spk opk k;
+  x3dh_key_secret_r i a b sid spk opk k_iv;
+  let (k,iv) = k_iv in
   assert (is_unknown_to_attacker_at i k \/
        corrupt_at len (P a) \/
        corrupt_at len (P b)); 
-  x3dh_msg0_key_secret_r_helper i a b sid spk opk k
+  x3dh_msg0_key_secret_r_helper i a b sid spk opk k_iv
 #pop-options
 
 let is_msg_n_key_later_lemma i j r a b sid v k = ()

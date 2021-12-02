@@ -1,3 +1,5 @@
+/// NSL.Messages (implementation)
+/// ==============================
 module NSL.Messages
 open SecrecyLabels
 open GlobalRuntimeLib
@@ -41,9 +43,9 @@ let parse_message (m:bytes) =
     Success (Msg3 n_b str_a))
   else Error "incorrect tag"
 
-let nsl_key_usages : A.key_usages = A.none_key_usages
+let nsl_key_usages : A.key_usages = A.default_key_usages
 
-let ppred (i:nat) pk m =
+let ppred (i:nat) s pk m =
     (exists p. A.get_sk_label nsl_key_usages pk == readers [P p] /\
     (match parse_message m with
     | Success (Msg2 n_a n_b b) ->
@@ -55,9 +57,9 @@ let ppred (i:nat) pk m =
     | Success (Msg3 n_b a) ->
        (exists n_a. did_event_occur_before i a (finishI a p n_a n_b))
     | _ -> False))
-let apred i k m ad = True
-let spred i k m = True
-let mpred i k m = True
+let apred i s k m ad = True
+let spred i s k m = True
+let mpred i s k m = True
 
 let nsl_usage_preds : A.usage_preds = {
   A.can_pke_encrypt = ppred;
@@ -106,23 +108,26 @@ let parse_serialize_valid_message_lemma (i:nat) (m:message) (l:label) : Lemma
 
 val parse_valid_message: #i:nat -> #l:label -> w:msg i l ->
                         r:result message{match r with
-                                 | Success m -> Success m == parse_message w /\ valid_message i m l
+                                 | Success m -> Success m == parse_message w /\
+					       valid_message i m l
                                  | Error s -> True}
+#push-options "--z3rlimit 700"
 let parse_valid_message #i #l w =
   r1 <-- A.split w; let (tag,msg) = r1 in
   r2 <-- bytes_to_string tag; let str_tag = r2 in
-  if str_tag = "msg_2" then (
+  match str_tag with
+  | "msg_2" ->
     r3 <-- A.split msg; let (n_a,nbb) = r3 in
     r4 <-- A.split nbb; let (n_b,b) = r4 in
     r5 <-- bytes_to_string b; let str_b = r5 in
-    Success (Msg2 n_a n_b str_b))
-  else if str_tag = "msg_1" then (
+    Success (Msg2 n_a n_b str_b)
+  |  "msg_1" ->
     r6 <-- split msg; let (n_a,a) = r6 in
     r7 <-- bytes_to_string a; let str_a = r7 in
-    Success (Msg1 n_a str_a))
-  else if str_tag = "msg_3" then (
+    Success (Msg1 n_a str_a)
+  | "msg_3" ->
     r8 <-- split msg; let (n_b,a) = r8 in
     r9 <-- bytes_to_string a; let str_a = r9 in
-    Success (Msg3 n_b str_a))
-  else Error ("invalid term")
-
+    Success (Msg3 n_b str_a)
+  | _ -> Error ("invalid term")
+#pop-options

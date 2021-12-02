@@ -1,6 +1,6 @@
-/// ISO_DH.SecurityLemmas (implementation)
-/// ===================================
-module ISODH.SecurityLemmas
+/// ISODH.SecLemmas (implementation)
+/// =====================================
+module ISODH.SecLemmas
 
 let initiator_correspondence_lemma i a b gx gy k = ()
   

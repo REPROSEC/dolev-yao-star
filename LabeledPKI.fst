@@ -1,3 +1,5 @@
+/// LabeledPKI (implementation)
+/// ============================
 module LabeledPKI
 
 module A = LabeledCryptoAPI
@@ -17,16 +19,16 @@ type session_st =
 
 let serialize_session_st st : bytes =
    match st with
-   |SigningKey t secret_key -> concat (literal_to_bytes (String "SigningKey")) (concat (literal_to_bytes (String t)) (secret_key))
-   |VerificationKey t p public_key -> concat (literal_to_bytes (String "VerificationKey")) (concat (literal_to_bytes (String t)) (concat (literal_to_bytes (String p)) public_key))
-   |DHPrivateKey t secret_key -> concat (literal_to_bytes (String "DHPrivateKey")) (concat (literal_to_bytes (String t)) secret_key)
-   |DHPublicKey t p public_key -> concat (literal_to_bytes (String "DHPublicKey")) (concat (literal_to_bytes (String t)) (concat (literal_to_bytes (String p)) public_key))
-   |OneTimeDHPrivKey t secret_key -> concat (literal_to_bytes (String "OneTimeDHPrivKey")) (concat (literal_to_bytes (String t)) secret_key)
-   |OneTimeDHPubKey t p public_key -> concat (literal_to_bytes (String "OneTimeDHPubKey")) (concat (literal_to_bytes (String t)) (concat (literal_to_bytes (String p)) public_key))
-   |DeletedOneTimeKey t -> concat (literal_to_bytes (String "DeletedOneTimeKey")) (literal_to_bytes (String t))
-   |DecryptionKey t secret_key -> concat (literal_to_bytes (String "DecryptionKey")) (concat (literal_to_bytes (String t)) secret_key)
-   |EncryptionKey t p public_key -> concat (literal_to_bytes (String "EncryptionKey")) (concat (literal_to_bytes (String t)) (concat (literal_to_bytes (String p)) public_key))
-   |APP s -> concat (literal_to_bytes (String "APP")) s
+   |SigningKey t secret_key -> concat ((string_to_bytes "SigningKey")) (concat ((string_to_bytes t)) (secret_key))
+   |VerificationKey t p public_key -> concat ((string_to_bytes "VerificationKey")) (concat ((string_to_bytes t)) (concat ((string_to_bytes p)) public_key))
+   |DHPrivateKey t secret_key -> concat ((string_to_bytes "DHPrivateKey")) (concat ((string_to_bytes t)) secret_key)
+   |DHPublicKey t p public_key -> concat ((string_to_bytes "DHPublicKey")) (concat ((string_to_bytes t)) (concat ((string_to_bytes p)) public_key))
+   |OneTimeDHPrivKey t secret_key -> concat ((string_to_bytes "OneTimeDHPrivKey")) (concat ((string_to_bytes t)) secret_key)
+   |OneTimeDHPubKey t p public_key -> concat ((string_to_bytes "OneTimeDHPubKey")) (concat ((string_to_bytes t)) (concat ((string_to_bytes p)) public_key))
+   |DeletedOneTimeKey t -> concat ((string_to_bytes "DeletedOneTimeKey")) ((string_to_bytes t))
+   |DecryptionKey t secret_key -> concat ((string_to_bytes "DecryptionKey")) (concat ((string_to_bytes t)) secret_key)
+   |EncryptionKey t p public_key -> concat ((string_to_bytes "EncryptionKey")) (concat ((string_to_bytes t)) (concat ((string_to_bytes p)) public_key))
+   |APP s -> concat ((string_to_bytes "APP")) s
 
 let parse_session_st (serialized_session:bytes) : result session_st =
   r <-- split serialized_session;
@@ -94,10 +96,10 @@ let parse_session_st (serialized_session:bytes) : result session_st =
 
 val parse_serialize_session_st_lemma : ss:session_st ->
     Lemma (Success ss == parse_session_st (serialize_session_st ss))
-	  [SMTPat (parse_session_st (serialize_session_st ss))]
+          [SMTPat (parse_session_st (serialize_session_st ss))]
 let parse_serialize_session_st_lemma ss = ()
 
-let valid_session (pr:R.preds) (i:nat) (p:principal) (si:nat) (vi:nat) (st:session_st) : Type0 =
+let valid_session (pr:R.preds) (i:timestamp) (p:principal) (si:nat) (vi:nat) (st:session_st) : Type0 =
   match st with
   | SigningKey t secret_key ->
     A.is_signing_key pr.R.global_usage i secret_key (readers [P p]) t
@@ -111,7 +113,7 @@ let valid_session (pr:R.preds) (i:nat) (p:principal) (si:nat) (vi:nat) (st:sessi
     vi = 0 /\ A.is_dh_private_key pr.R.global_usage i secret_key (readers [V p si 0]) t
   | OneTimeDHPubKey t p public_key ->
     (exists si. A.is_dh_public_key pr.R.global_usage i public_key (readers [V p si 0]) t)
-  | DeletedOneTimeKey t -> 
+  | DeletedOneTimeKey t ->
     vi = 1
   | DecryptionKey t secret_key ->
     A.is_private_dec_key pr.R.global_usage i secret_key (readers [P p]) t
@@ -119,36 +121,36 @@ let valid_session (pr:R.preds) (i:nat) (p:principal) (si:nat) (vi:nat) (st:sessi
     A.is_public_enc_key pr.R.global_usage i public_key (readers [P p]) t
   | APP s -> R.(pr.trace_preds.session_st_inv i p si vi s)
 
-val valid_session_later: pr:R.preds -> i:nat -> j:nat -> p: principal -> si:nat -> vi:nat -> st:session_st -> Lemma
+val valid_session_later: pr:R.preds -> i:timestamp -> j:timestamp -> p: principal -> si:nat -> vi:nat -> st:session_st -> Lemma
   ((valid_session pr i p si vi st /\ later_than j i) ==> valid_session pr j p si vi st)
   [SMTPat (valid_session pr i p si vi st); SMTPat (valid_session pr j p si vi st)]
 let valid_session_later pr i j p si vi st = ()
 
 let includes_lemma (p:principal) (s:nat) (v:nat) : Lemma (includes_ids [P p] [V p s v]) [SMTPat (includes_ids [P p] [V p s v])] = ()
 
-val valid_session_lemma: pr:R.preds -> i:nat -> p: principal -> si:nat -> vi:nat -> st:session_st ->
+val valid_session_lemma: pr:R.preds -> i:timestamp -> p: principal -> si:nat -> vi:nat -> st:session_st ->
   Lemma (requires (valid_session pr i p si vi st))
-	(ensures (A.is_msg pr.R.global_usage i (serialize_session_st st) (readers [V p si vi])))
-	[SMTPatOr
-	  [
-	    [SMTPat (valid_session pr i p si vi st)];
-	    [SMTPat (A.is_msg pr.R.global_usage i (serialize_session_st st) (readers [V p si vi]))]
-	  ]
-	]
+        (ensures (A.is_msg pr.R.global_usage i (serialize_session_st st) (readers [V p si vi])))
+        [SMTPatOr
+          [
+            [SMTPat (valid_session pr i p si vi st)];
+            [SMTPat (A.is_msg pr.R.global_usage i (serialize_session_st st) (readers [V p si vi]))]
+          ]
+        ]
 let valid_session_lemma pr i p si vi st =
   let l = readers [V p si vi] in
   let tg : A.msg pr.R.global_usage i public =
     match st with
-    | SigningKey _ _ -> A.literal_to_bytes #pr.R.global_usage #i (String "SigningKey")
-    | VerificationKey _ _ _ -> A.literal_to_bytes #pr.R.global_usage #i (String "VerificationKey")
-    | DHPrivateKey _ _ -> A.literal_to_bytes #pr.R.global_usage #i (String "DHPrivateKey")
-    | DHPublicKey _ _ _ -> A.literal_to_bytes #pr.R.global_usage #i (String "DHPublicKey")
-    | OneTimeDHPrivKey _ _ -> A.literal_to_bytes #pr.R.global_usage #i (String "OneTimeDHPrivKey")
-    | OneTimeDHPubKey _ _ _ -> A.literal_to_bytes #pr.R.global_usage #i (String "OneTimeDHPubKey")
-    | DeletedOneTimeKey _ -> A.literal_to_bytes #pr.R.global_usage #i (String "DeletedOneTimeKey")
-    | DecryptionKey _ _ -> A.literal_to_bytes #pr.R.global_usage #i (String "DecryptionKey")
-    | EncryptionKey _ _ _ -> A.literal_to_bytes #pr.R.global_usage #i (String "EncryptionKey")
-    | APP _ -> A.literal_to_bytes #pr.R.global_usage #i (String "APP") in
+    | SigningKey _ _ -> A.string_to_bytes #pr.R.global_usage #i ("SigningKey")
+    | VerificationKey _ _ _ -> A.string_to_bytes #pr.R.global_usage #i ("VerificationKey")
+    | DHPrivateKey _ _ -> A.string_to_bytes #pr.R.global_usage #i ("DHPrivateKey")
+    | DHPublicKey _ _ _ -> A.string_to_bytes #pr.R.global_usage #i ("DHPublicKey")
+    | OneTimeDHPrivKey _ _ -> A.string_to_bytes #pr.R.global_usage #i ("OneTimeDHPrivKey")
+    | OneTimeDHPubKey _ _ _ -> A.string_to_bytes #pr.R.global_usage #i ("OneTimeDHPubKey")
+    | DeletedOneTimeKey _ -> A.string_to_bytes #pr.R.global_usage #i ("DeletedOneTimeKey")
+    | DecryptionKey _ _ -> A.string_to_bytes #pr.R.global_usage #i ("DecryptionKey")
+    | EncryptionKey _ _ _ -> A.string_to_bytes #pr.R.global_usage #i ("EncryptionKey")
+    | APP _ -> A.string_to_bytes #pr.R.global_usage #i ("APP") in
   match st with
   | SigningKey t secret_key
   | DHPrivateKey t secret_key
@@ -157,20 +159,20 @@ let valid_session_lemma pr i p si vi st =
     A.includes_can_flow_lemma i [P p] [V p si vi];
     let ct = A.concat #pr.R.global_usage #i #(readers [P p]) tg (A.concat #pr.R.global_usage #i #(readers [P p]) (A.string_to_bytes #pr.R.global_usage #i t) secret_key) in
     ()
-  | OneTimeDHPrivKey t secret_key -> 
+  | OneTimeDHPrivKey t secret_key ->
     let ct = A.concat #pr.R.global_usage #i #(readers [V p si vi]) tg (A.concat #pr.R.global_usage #i #(readers [V p si vi]) (A.string_to_bytes #pr.R.global_usage #i t) secret_key) in
     ()
-  | OneTimeDHPubKey t p' public_key -> 
-    let pb = A.literal_to_bytes #pr.R.global_usage #i (String p') in
+  | OneTimeDHPubKey t p' public_key ->
+    let pb = A.string_to_bytes #pr.R.global_usage #i (p') in
     let ct = A.concat #pr.R.global_usage #i #l tg (A.concat #pr.R.global_usage #i #l (A.string_to_bytes #pr.R.global_usage #i t) (A.concat #pr.R.global_usage #i #l pb public_key)) in
     ()
-  | DeletedOneTimeKey t -> 
+  | DeletedOneTimeKey t ->
     let ct = A.concat #pr.R.global_usage #i #(readers [V p si vi]) tg (A.string_to_bytes #pr.R.global_usage #i t) in
     ()
   | VerificationKey t p' public_key
   | DHPublicKey t p' public_key
   | EncryptionKey t p' public_key ->
-    let pb = A.literal_to_bytes #pr.R.global_usage #i (String p') in
+    let pb = A.string_to_bytes #pr.R.global_usage #i (p') in
     assert (A.can_flow i public (readers [P p]));
     A.includes_can_flow_lemma i [P p] [V p si vi];
     let ct = A.concat #pr.R.global_usage #i #l tg (A.concat #pr.R.global_usage #i #l (A.string_to_bytes #pr.R.global_usage #i t) (A.concat #pr.R.global_usage #i #l pb public_key)) in
@@ -188,7 +190,7 @@ let session_st_inv pr i p si vi st =
    | Success s -> valid_session pr i p si vi s
    | _ -> False)
 
-val session_st_inv_later: pr:R.preds -> i:nat -> j:nat -> p: principal -> si:nat -> vi:nat -> st:bytes -> Lemma
+val session_st_inv_later: pr:R.preds -> i:timestamp -> j:timestamp -> p: principal -> si:nat -> vi:nat -> st:bytes -> Lemma
   ((session_st_inv pr i p si vi st /\ later_than j i) ==> session_st_inv pr j p si vi st)
   [SMTPat (session_st_inv pr i p si vi st); SMTPat (session_st_inv pr j p si vi st)]
 let session_st_inv_later pr i j p si vi st = ()
@@ -241,7 +243,7 @@ let find_session #pr #i p f =
 )
 
 let keygen pr p si kt ts :
-  LCrypto (t:nat & private_key pr t si p kt ts) (pki pr)
+  LCrypto (t:timestamp & private_key pr t si p kt ts) (pki pr)
   (requires (fun _ -> True))
   (ensures (fun t0 (|t,sk|) t1 -> t == trace_len t0 /\ trace_len t1 == t + 1)) =
   match kt with
@@ -267,7 +269,7 @@ let gen_private_key #pr #t0 p kt ts =
   let si = new_session_number #(pki pr) p in
   let (|t1,sk|) = keygen pr p si kt ts in
   assert (later_than t1 t0);
-  let st = (match kt with | OneTimeDH -> OneTimeDHPrivKey ts sk | _ -> private_key_st pr t1 p si 0 kt ts sk) in 
+  let st = (match kt with | OneTimeDH -> OneTimeDHPrivKey ts sk | _ -> private_key_st pr t1 p si 0 kt ts sk) in
   let new_ss_st = serialize_session_st st in
   let t2 = global_timestamp () in
   assert (session_st_inv pr t2 p si 0 new_ss_st);
@@ -279,7 +281,7 @@ let get_private_key #pr #i p kt ts =
   let filter si vi b = match kt, parse_session_st b with
     | SIG, Success (SigningKey ts' sk)
     | DH, Success (DHPrivateKey ts' sk)
-    | PKE, Success (DecryptionKey ts' sk) 
+    | PKE, Success (DecryptionKey ts' sk)
     | OneTimeDH, Success (OneTimeDHPrivKey ts' sk) -> ts = ts'
     | _ -> false in
   match R.find_session #(pki pr) #i p filter with
@@ -296,7 +298,7 @@ let install_public_key #pr #i p peer kt ts =
   print_string ("installing public key for "^p^" at "^peer^"\n");
   let (|osi, sk|) = get_private_key #pr #i p kt ts in
   let si = new_session_number #(pki pr) peer in
-  let st = (match kt with | OneTimeDH -> OneTimeDHPubKey ts p (A.dh_pk #pr.global_usage #i #(readers [V p osi 0]) sk) | _ -> public_key_st pr i p peer si 0 kt ts sk) in 
+  let st = (match kt with | OneTimeDH -> OneTimeDHPubKey ts p (A.dh_pk #pr.global_usage #i #(readers [V p osi 0]) sk) | _ -> public_key_st pr i p peer si 0 kt ts sk) in
   let new_st = serialize_session_st st in
   R.new_session #(pki pr) #i peer si 0 new_st;
   si
@@ -319,6 +321,6 @@ let get_public_key #pr #i p peer kt ts =
   | None -> error "public key not found"
 
 let delete_one_time_key #pr #i p ts =
-  let (|si, sk|) = get_private_key #pr #i p OneTimeDH ts in 
-  let st = serialize_session_st (DeletedOneTimeKey ts) in 
+  let (|si, sk|) = get_private_key #pr #i p OneTimeDH ts in
+  let st = serialize_session_st (DeletedOneTimeKey ts) in
   R.update_session #(pki pr) #i p si 1 st

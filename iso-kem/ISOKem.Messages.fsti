@@ -1,3 +1,5 @@
+/// ISOKem.Messages
+/// ================
 module ISOKem.Messages
 
 open SecrecyLabels
@@ -8,10 +10,10 @@ module A = LabeledCryptoAPI
 
 (* Events *)
 
-let initiate (a:principal) (b:principal) (gx:bytes) : event = ("Initiate",[literal_to_bytes (String a);literal_to_bytes (String b);gx])
-let respond (a:principal) (b:principal) (gx:bytes) (gy:bytes) (k:bytes): event = ("Respond",[literal_to_bytes (String a);literal_to_bytes (String b);gx;gy;k])
-let finishI (a:principal) (b:principal) (gx:bytes) (gy:bytes) (k:bytes): event = ("FinishI",[literal_to_bytes (String a);literal_to_bytes (String b);gx;gy;k])
-let finishR (a:principal) (b:principal) (gx:bytes) (gy:bytes) (k:bytes): event = ("FinishR",[literal_to_bytes (String a);literal_to_bytes (String b);gx;gy;k])
+let initiate (a:principal) (b:principal) (gx:bytes) : event = ("Initiate",[(string_to_bytes a);(string_to_bytes b);gx])
+let respond (a:principal) (b:principal) (gx:bytes) (gy:bytes) (k:bytes): event = ("Respond",[(string_to_bytes a);(string_to_bytes b);gx;gy;k])
+let finishI (a:principal) (b:principal) (gx:bytes) (gy:bytes) (k:bytes): event = ("FinishI",[(string_to_bytes a);(string_to_bytes b);gx;gy;k])
+let finishR (a:principal) (b:principal) (gx:bytes) (gy:bytes) (k:bytes): event = ("FinishR",[(string_to_bytes a);(string_to_bytes b);gx;gy;k])
 
 (* Formats of Signed Values *)
 noeq type sigval =
@@ -21,19 +23,20 @@ noeq type sigval =
 val parse_sigval: bytes -> result sigval
 
 (* Global Key Usages *)
-let isokem_key_usages : A.key_usages = A.none_key_usages
+let isokem_key_usages : A.key_usages = A.default_key_usages
 
-let ppred i pk m = True
-let apred i k m ad = True
-let spred i k m =
+let ppred i s pk m = True
+let apred i s k m ad = True
+let spred i s k m =
+    s == "ISOKem.sig_key" /\
     (exists p. A.get_signkey_label isokem_key_usages k == readers [P p] /\
 	(match parse_sigval m with
 	 | Success (SigMsg2 a gx gy) ->
-	   (exists k. gy == (pke_enc gx k) /\ did_event_occur_before i p (respond a p gx gy k))
+	   (exists k n. gy == (pke_enc gx n k) /\ did_event_occur_before i p (respond a p gx gy k))
 	 | Success (SigMsg3 b gx gy) ->
-	   (exists k. gy == (pke_enc gx k) /\ did_event_occur_before i p (finishI p b gx gy k))
+	   (exists k n. gy == (pke_enc gx n k) /\ did_event_occur_before i p (finishI p b gx gy k))
 	 | _ -> False))
-let mpred i k m = True
+let mpred i s k m = True
 
 let isokem_usage_preds : A.usage_preds = {
   A.can_pke_encrypt = ppred;

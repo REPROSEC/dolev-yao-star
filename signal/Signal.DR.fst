@@ -9,15 +9,15 @@ let serialize_signal_msg (#i:nat) (m:signal_msg i) : msg_at i public =
   match m with
   | Msg ek pct ct c -> 
 	(A.concat #signal_global_usage #i #public ek 
-	  (A.concat #signal_global_usage #i #public (A.literal_to_bytes #signal_global_usage #i (Nat pct)) 
-	    (A.concat #signal_global_usage #i #public (A.literal_to_bytes #signal_global_usage #i (Nat ct)) c)))
+	  (A.concat #signal_global_usage #i #public (A.nat_to_bytes #signal_global_usage #i 4 (pct)) 
+	    (A.concat #signal_global_usage #i #public (A.nat_to_bytes #signal_global_usage #i 4 (ct)) c)))
 
 let parse_signal_msg (#i:nat) (msg:msg_at i public) : result (signal_msg i) =
     r <-- A.split #signal_global_usage #i #public msg; let (ek,rest) = r in
     r <-- A.split #signal_global_usage #i #public rest; let (pct,rest) = r in
     r <-- A.split #signal_global_usage #i #public rest; let (ct,c) = r in
-    match bytes_to_literal pct, bytes_to_literal ct with 
-    | Success (Nat pct), Success (Nat ct) -> Success (Msg ek pct ct c)
+    match bytes_to_nat pct, bytes_to_nat ct with 
+    | Success (pct), Success (ct) -> Success (Msg ek pct ct c)
     | _ -> Error "error in parse signal msg"
 
 let send_message #i p pr msg =

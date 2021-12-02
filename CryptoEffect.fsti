@@ -1,10 +1,14 @@
+/// CryptoEffect
+/// =============
 module CryptoEffect
 
 open SecrecyLabels
 open CryptoLib
 
-(* The global trace is a monotonic list of entries *)
-(* The type of entries is defined as follows *)
+/// Global Execution Trace
+/// ----------------------
+///
+/// The global trace is a monotonic list of entries, whose type is defined as follows.
 type event = string & list bytes
 type session_state = bytes
 type state_vec = Seq.seq session_state
@@ -18,11 +22,14 @@ noeq type entry_t =
   | Message: sender:principal -> receiver:principal -> message:bytes -> entry_t
 
 type trace = Seq.seq entry_t
+
 let trace_len t = Seq.length t
 
-
-(* To encode monotonic traces, we define a new effect called Crypto.
-   The following is the machinery that F* needs to enforce the monadic rules for this effect *)
+/// CRYPTO Effect
+/// -------------
+///
+/// To encode monotonic traces, we define a new effect called Crypto.  The following is the
+/// machinery that F* needs to enforce the monadic rules for this effect.
 
 (* The trace grows monotnically *)
 let grows : Preorder.preorder trace =
@@ -47,17 +54,19 @@ type wp_t (a:Type) =
     )
   }
 
+open FStar.Monotonic.Pure
+
 (* A concrete low-level representation of Crypto functions as a state-passing function *)
 type repr (a:Type) (wp:wp_t a) =
   s0:trace ->
   PURE
   (result a & trace)
-  (fun (postcond:pure_post (result a & trace)) ->
+  (as_pure_wp (fun (postcond:pure_post (result a & trace)) ->
     let crypto_postcond:post_t a = fun (x:result a) s1 -> grows s0 s1 ==> postcond (x, s1) in
     let crypto_precond:pre_t = wp crypto_postcond in
     let pure_precond:pure_pre = crypto_precond s0 in
     pure_precond
-  )
+  ))
 
 (* Return a value from a Crypto computation *)
 unfold
@@ -127,13 +136,13 @@ layered_effect {
 (* A lifting of PURE computations into CRYPTO *)
 unfold
 let lift_pure_crypto_wp (#a:Type) (wp:pure_wp a) : wp_t a =
-  FStar.Monotonic.Pure.wp_monotonic_pure ();
+  elim_pure_wp_monotonicity_forall ();
   fun p s0 -> wp (fun x -> p (Success x) s0)
 
 inline_for_extraction
 let lift_pure_dyerror (a:Type) (wp:pure_wp a) (f:eqtype_as_type unit -> PURE a wp)
-: repr a (lift_pure_crypto_wp wp)
-= FStar.Monotonic.Pure.wp_monotonic_pure ();
+: repr a (lift_pure_crypto_wp wp) = 
+  elim_pure_wp_monotonicity_forall ();
   fun s0 -> Success (f ()), s0
 
 sub_effect PURE ~> CRYPTO = lift_pure_dyerror
@@ -143,15 +152,23 @@ effect Crypto (a:Type) (req:trace -> Type0) (ens:(s0:trace{req s0} -> result a -
   CRYPTO a (fun post s0 -> req s0 /\
     (forall (x:result a) (s1:trace). ens s0 x s1 ==> post x s1))
 
-(* A predicate saying that a certain entry holds at a certain trace index *)
-val trace_entry_at (trace_index:nat) (entry:entry_t) : Type0
-let trace_entry_before (j:nat) (e:entry_t) =
-  exists (trace_index:nat). trace_index <= j /\ trace_entry_at trace_index e
+
+/// (Total) predicates on the global trace
+/// --------------------------------------
+///
+/// These predicates (which can only be used in specifications) allow us to specify pre- and
+/// postconditions involving the global trace.
+
+(* A predicate saying that a certain entry is stored at a certain trace index *)
+val trace_entry_at (trace_index:timestamp) (entry:entry_t) : Type0
+
+let trace_entry_before (j:timestamp) (e:entry_t) =
+  exists (trace_index:timestamp). trace_index <= j /\ trace_entry_at trace_index e
 
 
 (** Property of [trace_entry_at]: If [trace_entry_at i] is true for two entries (with the same [i]), then these
 two entries are equal. *)
-val trace_entry_at_injective: i:nat -> e1:entry_t -> e2:entry_t ->
+val trace_entry_at_injective: i:timestamp -> e1:entry_t -> e2:entry_t ->
   Lemma (requires (trace_entry_at i e1 /\ trace_entry_at i e2))
         (ensures (e1 == e2))
         [SMTPat (trace_entry_at i e1); SMTPat (trace_entry_at i e2)]
@@ -159,7 +176,7 @@ val trace_entry_at_injective: i:nat -> e1:entry_t -> e2:entry_t ->
 let trace_entry_at_injective_forall n:
   Lemma (forall e1 e2. trace_entry_at n e1 /\ trace_entry_at n e2 ==> e1 == e2) = ()
 
-val trace_entry_at_before_now: idx:nat -> et:entry_t -> Crypto unit
+val trace_entry_at_before_now: idx:timestamp -> et:entry_t -> Crypto unit
   (requires fun t0 -> trace_entry_at idx et)
   (ensures fun t0 _ t1 ->  t0 == t1 /\ idx < trace_len t1)
 

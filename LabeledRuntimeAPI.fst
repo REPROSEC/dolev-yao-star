@@ -1,3 +1,5 @@
+/// LabeledRuntimeAPI (implementation)
+/// ===================================
 module LabeledRuntimeAPI
 
 open SecrecyLabels
@@ -8,11 +10,11 @@ open LabeledCryptoAPI
 #set-options "--z3rlimit 200 --max_fuel 1 --max_ifuel 1"
 
 let valid_trace (pr:preds) (tr:trace) =
-  (forall (i:nat) (t:bytes) (s:principal) (r:principal). i < trace_len tr ==>
+  (forall (i:timestamp) (t:bytes) (s:principal) (r:principal). i < trace_len tr ==>
     (was_message_sent_at i s r t ==> (is_publishable pr.global_usage i t))) /\
-  (forall (i:nat) (p:principal) (v:version_vec) (s:state_vec). i < trace_len tr ==>
+  (forall (i:timestamp) (p:principal) (v:version_vec) (s:state_vec). i < trace_len tr ==>
     (state_was_set_at i p v s ==> (state_inv pr i p v s))) /\
-  (forall (i:nat) (s:principal) (e:event). i < trace_len tr ==>
+  (forall (i:timestamp) (s:principal) (e:event). i < trace_len tr ==>
     (did_event_occur_at i s e ==> (event_pred_at pr i s e)))
 
 let valid_trace_event_lemma pr t i s e = ()
@@ -77,14 +79,14 @@ let set_state #pr p v s =
   let t1 = get() in
   assert (valid_trace pr t1)
 
-val get_state_i: #pr:preds -> i:nat -> p:principal ->
-    LCrypto (nat & version_vec & state_vec) pr
+val get_state_i: #pr:preds -> i:timestamp -> p:principal ->
+    LCrypto (timestamp & version_vec & state_vec) pr
      (requires (fun t0 -> True))
      (ensures (fun t0 (now,v,s) t1 -> t0 == t1 /\
-	      i < trace_len t0 /\
-	      now = trace_len t0 /\
-	      state_was_set_at i p v s /\
-	      state_inv pr now p v s))
+              i < trace_len t0 /\
+              now = trace_len t0 /\
+              state_was_set_at i p v s /\
+              state_inv pr now p v s))
 
 
 let get_state_i #pr i p =
@@ -164,14 +166,14 @@ let get_session #pr #i p si =
     | _ -> error "no prior session to update"
 
 let rec find_session_
-  (pr:preds) (pi:nat) (p:principal) (v:version_vec)
+  (pr:preds) (pi:timestamp) (p:principal) (v:version_vec)
   (st:state_vec{state_inv pr pi p v st})
   (f:nat -> nat -> bytes -> bool) (i:nat{i <= Seq.length st}) :
   Pure (option (si:nat & vi:nat & msg pr.global_usage pi (readers [V p si vi])))
     (requires True)
     (ensures (fun r -> match r with | None -> True
-		    | Some (|si,vi,st|) -> f si vi st /\
-					  pr.trace_preds.session_st_inv pi p si vi st))
+                    | Some (|si,vi,st|) -> f si vi st /\
+                                          pr.trace_preds.session_st_inv pi p si vi st))
     (decreases (Seq.length st - i))
 =  if i = Seq.length st then None else
    if f i v.[i] st.[i] then (
@@ -189,4 +191,3 @@ let find_session #pr #i p f =
       assert(state_inv pr now p v st);
       find_session_ pr now p v st f 0 )
     | _ -> None
-

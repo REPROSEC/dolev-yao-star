@@ -48,21 +48,24 @@ let send_msg_2_helper #idx b a gx =
   let kl = join xl (readers [P b]) in
   let (|t1, k|) = rand_gen #isokem kl (aead_usage "ISOKem.aead_key") in
   can_flow_from_join t1 xl (readers [P b]);
-  let gy = pke_enc #isokem_global_usage #t1 gx k in
+  let (|t2,n_pke|) = rand_gen #isokem (readers [P b]) (nonce_usage "PKE_NONCE") in
+  assert (can_flow t2 kl (readers [P b]));
+  let gy = pke_enc #isokem_global_usage #t2 #(readers [P b]) gx n_pke k in
   let si = new_session_number #isokem b in
   let new_ss_st = (ResponderSentMsg2 a gx gy k) in
-  let new_ss = serialize_valid_session_st t1 b si 0 new_ss_st in
+  let new_ss = serialize_valid_session_st t2 b si 0 new_ss_st in
   trigger_event #isokem b (respond a b gx gy k); 
   let t2 = global_timestamp () in
   new_session #isokem #t2 b si 0 new_ss;
   let t3 = global_timestamp () in
   let sv: msg t3 public = sigval_msg2 #t3 a gx gy in
   let vkb = vk #isokem_global_usage #t3 #(readers [P b]) skb in
-  let sg = sign #isokem_global_usage #t3 #(readers [P b]) #public skb sv in
+  let (|t4,n_sig|) = rand_gen #isokem (readers [P b]) (nonce_usage "SIG_NONCE") in
+  let sg = sign #isokem_global_usage #t4 #(readers [P b]) #public skb n_sig sv in
   let gy:msg t3 public = gy in
   let msg2 = Msg2 b gy sg in
-  let w_msg2 = serialize_msg t3 msg2 in
-  let i = send #isokem #t3 b a w_msg2 in
+  let w_msg2 = serialize_msg t4 msg2 in
+  let i = send #isokem #t4 b a w_msg2 in
   i,si
 
 let responder_send_msg_2 b idx_msg =
@@ -81,7 +84,7 @@ val receive_msg_2_helper:
   LCrypto bytes (pki isokem)
   (requires (fun t0 -> i == trace_len t0))
   (ensures (fun t0 k t1 -> trace_len t0 == trace_len t1 /\
-			gy == CryptoLib.pke_enc gx k /\
+			(exists n. gy == CryptoLib.pke_enc gx n k) /\
 			is_msg isokem_global_usage i k (readers [P a]) /\
 			(corrupt_id i (P b) \/
    				    (is_session_key i k a b /\ did_event_occur_before i b (respond a b gx gy k)))))
@@ -126,11 +129,12 @@ let initiator_send_msg_3 a idx_session idx_msg =
       let sv : msg t3 public = sigval_msg3 #t3 b gx gy in
       let ska : private_key isokem t3 si a SIG "ISOKem.sig_key" = ska in
       let vka = vk #isokem_global_usage #t3 #(readers [P a]) ska in
-      assert (sign_pred isokem_global_usage.usage_preds t3 vka sv);
-      let sg' = sign #isokem_global_usage #t3 #(readers [P a]) #public ska sv in
+      assert (sign_pred isokem_global_usage.usage_preds t3 "ISOKem.sig_key" vka sv);
+      let (|t4,n_sig|) = rand_gen #isokem (readers [P a]) (nonce_usage "SIG_NONCE") in
+      let sg' = sign #isokem_global_usage #t4 #(readers [P a]) #public ska n_sig sv in
       let msg3 = Msg3 sg' in
-      let w_msg3 : msg t3 public = serialize_msg t3 msg3 in
-      let i = send #isokem #t3 a b w_msg3 in
+      let w_msg3 : msg t4 public = serialize_msg t4 msg3 in
+      let i = send #isokem #t4 a b w_msg3 in
       i)
       else error "initiator_send_msg_3: incorrect sender"
     | _ -> error "initiator_send_msg_3: not a msg2")
@@ -152,7 +156,7 @@ let responder_accept_msg_3 b idx_session idx_msg =
 	 if verify #isokem_global_usage #t1 #(readers [P a]) #public pka sv sg then (
 	     can_flow_to_public_implies_corruption t1 (P a);
 	     verification_key_label_lemma isokem_global_usage t1 pka (readers [P a]);
-	     readers_is_injective a; C.pke_enc_inj_lemma gx k;
+	     readers_is_injective a;
 	     sk_label_lemma isokem_global_usage t1 gx (readers [P a]);
 	     assert (corrupt_id t1 (P a) \/ (is_session_key t1 k a b /\ did_event_occur_before t1 a (finishI a b gx gy k))); 
   	     let new_ss_st = (ResponderReceivedMsg3 a gx gy k) in

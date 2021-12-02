@@ -1,3 +1,5 @@
+/// CryptoEffect (implementation)
+/// ==============================
 module CryptoEffect
 
 module W = FStar.Monotonic.Witnessed
@@ -11,7 +13,7 @@ let c_get ()
   (fun p s -> p (Success s) s)
 = CRYPTO?.reflect (fun s0 -> Success s0, s0)
 
-(** Set a new trace (which has to be an extenstion of the current trace) *)
+(** Set a new trace (which has to be an extension of the current trace) *)
 inline_for_extraction
 val put (s1:trace)
 : CRYPTO unit (fun p s0 -> grows s0 s1 /\ p (Success ()) s1)
@@ -30,7 +32,7 @@ let cerror (#a:Type) (e:string)
 (** Get the current trace length *)
 inline_for_extraction
 let cglobal_timestamp ()
-: CRYPTO nat
+: CRYPTO timestamp
   (fun p s -> p (Success (Seq.length s)) s)
 = let s0 = c_get () in
   Seq.length s0
@@ -46,15 +48,15 @@ let write_at_end (e:entry_t)
   (fun p s -> p (Success ()) (Seq.snoc s e))
 = let s0 = c_get () in
   let s1 = Seq.snoc s0 e in
-  assert (forall (i:nat). i < Seq.length s0 ==> Seq.index s0 i == Seq.index s1 i);
+  assert (forall (i:timestamp). i < Seq.length s0 ==> Seq.index s0 i == Seq.index s1 i);
   put s1
 
 (** Get the trace entry at index i *)
 inline_for_extraction
-val index (i:nat)
+val index (i:timestamp)
 :CRYPTO entry_t (fun p s -> i < trace_len s /\ p (Success (Seq.index s i)) s)
 inline_for_extraction
-let index (i:nat)
+let index (i:timestamp)
 : CRYPTO entry_t
   (fun p s -> i < Seq.length s /\ p (Success (Seq.index s i)) s)
 = let s0 = c_get () in
@@ -131,7 +133,7 @@ let witnessed_exists (#t:Type) (p:(t -> trace_pred))
 
 (** Checks whether [entry] can be found at [trace_index] in the trace. *)
 inline_for_extraction
-let trace_entry_at_pred (n:nat) (e:entry_t) : (p:trace_pred{stable p}) =
+let trace_entry_at_pred (n:timestamp) (e:entry_t) : (p:trace_pred{stable p}) =
   fun (s:trace) ->
   trace_len s > n /\
   Seq.index s n == e
@@ -140,7 +142,7 @@ let trace_entry_at_pred (n:nat) (e:entry_t) : (p:trace_pred{stable p}) =
 trace_entry_at_pred*)
 let trace_entry_at trace_index entry = witnessed (trace_entry_at_pred trace_index entry)
 
-val trace_entry_at_pred_injective (n:nat) (e1:entry_t) (e2:entry_t) :
+val trace_entry_at_pred_injective (n:timestamp) (e1:entry_t) (e2:entry_t) :
   Lemma (forall t. (trace_entry_at_pred n e1 t /\ trace_entry_at_pred n e2 t) ==> e1 == e2)
 let trace_entry_at_pred_injective n e1 e2 = ()
 
@@ -156,7 +158,7 @@ let trace_entry_at_injective i e1 e2 =
   assert (witnessed (fun t -> e1 == e2));
   witnessed_constant (e1 == e2)
 
-let trace_entry_at_before_now idx et = 
+let trace_entry_at_before_now idx et =
   assert(witnessed (trace_entry_at_pred idx et));
   let t0 = c_get() in
   recall (trace_entry_at_pred idx et);

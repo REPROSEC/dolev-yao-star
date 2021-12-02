@@ -68,7 +68,7 @@ val key_synch_attacker:
   (requires fun _ -> True)
   (ensures fun _ _ _ -> True)
 
-#push-options "--z3rlimit 300 --max_fuel 0 --max_ifuel 0"
+#push-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
 let key_synch_attacker () =
   let alice:principal = "alice" in
   let bob:principal = "bob" in
@@ -95,7 +95,7 @@ let key_synch_attacker () =
     | Success (ta,gx) ->
       let gx: pub_bytes t8 = gx in
       let str_m : pub_bytes t8 =
-	pub_bytes_later 0 t8 (literal_to_pub_bytes (String mallory)) in
+	pub_bytes_later 0 t8 ((string_to_pub_bytes mallory)) in
       let w_msg1':pub_bytes t8 = concat ttag (concat #t8 str_m gx) in
       let idx_msg1' = send #t8 mallory bob w_msg1' in
       let (idx_msg2, idx_sess_b) = responder_send_msg_2 bob idx_msg1' in
@@ -112,24 +112,26 @@ let key_synch_attacker () =
 	    let gy: pub_bytes t9 = gy in
 	    let gx: pub_bytes t9 = pub_bytes_later t8 t9 gx in
 	    let str_m : pub_bytes t9 = pub_bytes_later t8 t9 str_m in
-	    let str_a : pub_bytes t9 =
-	      pub_bytes_later 0 t9 (literal_to_pub_bytes (String alice)) in
+	    let str_a : pub_bytes t9 = pub_bytes_later 0 t9 ((string_to_pub_bytes alice)) in
 	    let sv' : pub_bytes t9 = concat ttag (concat str_a (concat gx gy)) in
-	    let sg' : pub_bytes t9 = sign skm sv' in
-	    let w_msg2':pub_bytes t9 = concat ttag (concat str_m (concat gy sg')) in
+	    let (| t10, n_sig |) = pub_rand_gen (nonce_usage "SIG_NONCE") in
+	    let sv' : pub_bytes t10 = pub_bytes_later t9 t10 sv' in
+	    let sg' : pub_bytes t10 = sign #t10 skm n_sig sv' in
+	    let w_msg2':pub_bytes t10 = concat #t10 ttag (concat #t10 str_m (concat #t10 gy sg')) in
 	    let idx_msg2' = send mallory alice w_msg2' in 
 	    let idx_msg3 = initiator_send_msg_3 alice idx_sess_a idx_msg2' in
 	    let (|_,w_msg3|) = receive_i idx_msg3 mallory in
 	    (match split w_msg3 with 
 	    | Success (ttag, rest) ->
-	      let t10 = global_timestamp () in
-	      let str_b : pub_bytes t10 = pub_bytes_later 0 t10 (literal_to_pub_bytes (String bob)) in
-	      let gy: pub_bytes t10 = pub_bytes_later t9 t10 gy in
-	      let gx: pub_bytes t10 = pub_bytes_later t9 t10 gx in
-	      let sv': pub_bytes t10 = concat ttag (concat str_b (concat gx gy)) in
-	      let skm :pub_bytes t10 = pub_bytes_later t5 t10 skm in
-	      let sg':pub_bytes t10  = sign skm sv' in
-	      let w_msg3':pub_bytes t10 = concat ttag sg' in
+	      let t11 = global_timestamp () in
+	      let str_b : pub_bytes t11 = pub_bytes_later 0 t11 ((string_to_pub_bytes bob)) in
+	      let gy: pub_bytes t11 = pub_bytes_later t10 t11 gy in
+	      let gx: pub_bytes t11 = pub_bytes_later t10 t11 gx in
+	      let sv': pub_bytes t11 = concat ttag (concat str_b (concat gx gy)) in
+	      let skm :pub_bytes t11 = pub_bytes_later t5 t11 skm in
+	      let (| t12, n_sig |) = pub_rand_gen (nonce_usage "SIG_NONCE") in
+	      let sg':pub_bytes t12  = sign #t12 skm n_sig sv' in
+	      let w_msg3':pub_bytes t12 = concat #t12 ttag sg' in
 	      let idx_msg3' = send mallory bob w_msg3' in
 	      responder_accept_msg_3 bob idx_sess_b idx_msg3'
 	    | _ -> error "w_msg3 split error")
@@ -152,20 +154,20 @@ let main =
   IO.print_string "       ISO-KEM        \n";
   IO.print_string "======================\n";
   let t0 = Seq.empty in
-  IO.print_string "Starting Benign 'Attacker':\n";
+  IO.print_string "Starting Benign Attacker:\n";
   assume(valid_trace (pki isokem) t0);
   let r,t1 = (reify (benign ()) t0) in
   (match r with
   | Error s -> IO.print_string ("ERROR: "^s^"\n")
-  | Success _ -> IO.print_string "Successful execution of ISO-KEM protocol.\n");
-  IO.print_string "Finished Benign 'Attacker'\n\n\n";
+  | Success _ -> IO.print_string "PROTOCOL RUN (SUCCESS for jenkins): Successful execution of ISO-KEM protocol.\n");
+  IO.print_string "Finished Benign Attacker:\n";
   IO.print_string "Starting Key-Synch Attacker:\n";
   assume(valid_trace (pki isokem) t0);
   let r,t1 = (reify (key_synch ()) t0) in
   (match r with
   | Error s -> IO.print_string ("ERROR: "^s^"\n")
-  | Success _ -> IO.print_string "Successful key synch attack on ISO-KEM protocol.\n");
-  IO.print_string "Finished Key-Synch Attacker\n"
+  | Success _ -> IO.print_string "PROTOCOL RUN (SUCCESS for jenkins): Successful key synch attack on ISO-KEM protocol.\n");
+  IO.print_string "Finished Key-Synch Attacker:\n"
 
 
 

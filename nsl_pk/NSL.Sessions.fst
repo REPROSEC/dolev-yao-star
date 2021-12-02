@@ -1,3 +1,5 @@
+/// NSL.Sessions (implementation)
+/// ==============================
 module NSL.Sessions
 
 open SecrecyLabels
@@ -28,22 +30,22 @@ noeq type session_st =
 let parse_session_st (serialized_session:bytes) : result session_st =
   match split serialized_session with 
   | Success (tn, o) ->
-    (match bytes_to_literal tn with 
-    | Success (String "InitiatorSentMsg1") ->
-      (match split o with | Success (b, n_a) -> (match bytes_to_literal b with | Success (String b) -> Success (InitiatorSentMsg1 b n_a) | _ -> Error "Not a principal")
+    (match bytes_to_string tn with 
+    | Success ("InitiatorSentMsg1") ->
+      (match split o with | Success (b, n_a) -> (match bytes_to_string b with | Success (b) -> Success (InitiatorSentMsg1 b n_a) | _ -> Error "Not a principal")
 			  | _ -> Error "initiator msg1 error")
-    | Success (String "ResponderSentMsg2") ->
-      (match split o with | Success (a, o) -> (match bytes_to_literal a, split o with 
-					     | Success (String a), Success (n_a, n_b) -> 
+    | Success ("ResponderSentMsg2") ->
+      (match split o with | Success (a, o) -> (match bytes_to_string a, split o with 
+					     | Success (a), Success (n_a, n_b) -> 
 					       Success (ResponderSentMsg2 a n_a n_b) | _ -> Error "responder msg2 error")
 			  | _ -> Error "responder msg2 error")
-    | Success (String "InitiatorSentMsg3") ->
-      (match split o with | Success (b, o) -> (match bytes_to_literal b, split o with 
-					     | Success (String b), Success (n_a, n_b) -> Success (InitiatorSentMsg3 b n_a n_b) | _ -> Error "initiator msg3 error")
+    | Success ("InitiatorSentMsg3") ->
+      (match split o with | Success (b, o) -> (match bytes_to_string b, split o with 
+					     | Success (b), Success (n_a, n_b) -> Success (InitiatorSentMsg3 b n_a n_b) | _ -> Error "initiator msg3 error")
 			  | _ -> Error "initiator msg3 error")
-    | Success (String "ResponderReceivedMsg3") ->
-      (match split o with | Success (a, n_b) -> (match bytes_to_literal a with 
-					     | Success (String a) -> 
+    | Success ("ResponderReceivedMsg3") ->
+      (match split o with | Success (a, n_b) -> (match bytes_to_string a with 
+					     | Success (a) -> 
 					       Success (ResponderReceivedMsg3 a n_b) | _ -> Error "responder msg3 error")
 			  | _ -> Error "responder msg3 error")
     | _ -> Error "incorrect session state format")

@@ -1,3 +1,5 @@
+/// ISODH.Messages (implementation)
+/// ================================
 module ISODH.Messages
 
 module A = LabeledCryptoAPI
@@ -9,18 +11,20 @@ let parse_sigval t : result sigval =
   let (tp,gxgy) = r in
   r <-- split gxgy ;
   let (gx,gy) = r in
-  r1 <-- bytes_to_literal ttag ;
-  r2 <-- bytes_to_literal tp ;
+  r1 <-- bytes_to_string ttag ;
+  r2 <-- bytes_to_string tp ;
   match r1,r2 with
-  | String "msg2", String b -> Success (SigMsg2 b gx gy)
-  | String "msg3", String a -> Success (SigMsg3 a gx gy)
+  | "msg2", b -> Success (SigMsg2 b gx gy)
+  | "msg3", a -> Success (SigMsg3 a gx gy)
   | _ -> Error "incorrect tag"
 
 let sigval_msg2 (#i:nat) (b:principal) (gx:msg i public) (gy:msg i public) : msg i public =
-    A.concat #isodh_global_usage #i #public (A.string_to_bytes "msg2") (A.concat #_ #i #public  (A.string_to_bytes b) (A.concat #_ #i #public gx gy))
+    A.concat #isodh_global_usage #i #public (A.string_to_bytes #isodh_global_usage #i "msg2") 
+      (A.concat #_ #i #public  (A.string_to_bytes #isodh_global_usage #i b) (A.concat #_ #i #public gx gy))
 
 let sigval_msg3 (#i:nat) (a:principal) (gx:msg i public) (gy:msg i public) : msg i public =
-    A.concat #_ #i #public (A.string_to_bytes "msg3") (A.concat #_ #i #public (A.string_to_bytes a) (A.concat #_ #i #public gx gy))
+    A.concat #_ #i #public (A.string_to_bytes #isodh_global_usage #i "msg3") 
+      (A.concat #_ #i #public (A.string_to_bytes #isodh_global_usage #i a) (A.concat #_ #i #public gx gy))
 
 
 let serialize_msg (i:nat) (m:iso_msg i) : msg i public =

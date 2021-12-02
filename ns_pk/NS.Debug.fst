@@ -93,7 +93,7 @@ let query_public_key idx_state idx_corrupt idx_query p s v =
       | _ -> b)
     | _ -> error "incorrect tag"
 
-#push-options "--z3rlimit 300 --max_fuel 0 --max_ifuel 0"
+#push-options "--z3rlimit 100 --max_fuel 0 --max_ifuel 0"
 let attacker () : LCrypto unit (pki ns)
     (requires fun _ -> True) (ensures fun _ _ _ -> True) =
   let alice:principal = "alice" in
@@ -121,8 +121,10 @@ let attacker () : LCrypto unit (pki ns)
   let idx_pke_a = install_public_key #ns #t5 eve alice PKE "NS.key" in
   let t6 = global_timestamp () in
   let idx_comp_eve = compromise eve idx_pkb_e 0 in
-  let t7 = global_timestamp () in 
+  let t7 = global_timestamp () in
   let pke = query_public_key t4 t6 t7 eve idx_pkb_e 0 in
+//  let (|_,n_pke|) = rand_gen #(ns) public (nonce_usage "PKE_NONCE") in
+  let (|_,n_pke|) = pub_rand_gen (nonce_usage "PKE_NONCE") in
   // initialization done
   // -------------------
   // start protocol
@@ -137,7 +139,7 @@ let attacker () : LCrypto unit (pki ns)
   | Success s1msg1 ->
     // (2)
     let s2msg1:pub_bytes len_now = s1msg1 in
-    let c_s2msg1 = pke_enc #len_now pkb' s2msg1 in
+    let c_s2msg1 = pke_enc #len_now pkb' n_pke s2msg1 in
     let idx_s2msg1 = send #len_now alice bob c_s2msg1 in
     let (idx_sess_b, idx_s2msg2) = responder_send_msg_2 bob idx_s2msg1 in
     // (3) + (4)
@@ -161,26 +163,24 @@ let attack () : LCrypto unit (pki ns)
 = let t0 = get() in
   let x = attacker () in
   print_trace ()
-
-
-#set-options "--max_ifuel 2"
+#pop-options
 
 let main =
   IO.print_string "======================\n";
-  IO.print_string "   Needham-Schroeder  \n";
+  IO.print_string "Needham-Schroeder\n";
   IO.print_string "======================\n";
   let t0 = Seq.empty in
-  IO.print_string "Starting Benign 'Attacker':\n";
+  IO.print_string "Starting Benign Attacker:\n";
   assume(valid_trace (pki ns) t0);
   let r,t1 = (reify (benign ()) t0) in
   (match r with
   | Error s -> IO.print_string ("ERROR: "^s^"\n")
-  | Success _ -> IO.print_string "Successful execution of Needham-Schroeder protocol.\n");
-  IO.print_string "Finished Benign 'Attacker'\n\n\n";
+  | Success _ -> IO.print_string "PROTOCOL RUN (SUCCESS for jenkins): Successful execution of Needham-Schroeder protocol.\n");
+  IO.print_string "Finished Benign Attacker:\n";
   IO.print_string "Starting Attacker:\n";
   let r,t1 = (reify (attack ()) t0) in
   (match r with
   | Error s -> IO.print_string ("ERROR: "^s^"\n")
-  | Success _ -> IO.print_string "Successful attack on Needham-Schroeder protocol.\n");
-  IO.print_string "Finished Attacker\n"
+  | Success _ -> IO.print_string "PROTOCOL RUN (SUCCESS for jenkins): Successful execution of Needham-Schroeder protocol.\n");
+  IO.print_string "Finished Attacker:\n"
 

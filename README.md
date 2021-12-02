@@ -24,14 +24,14 @@ them from a docker image.
 2. Make sure that the docker service is started
 
 3. Pull the docker image for the case studies: in a terminal, run
-   `docker pull foa3ucuvi85/custom-fstar-ocaml-emacs-docker:2.4-db812866`
+   `docker pull foa3ucuvi85/fstar-ocaml-emacs:latest`
 
-4. Start the image: `docker run -it -v </path/to/this/repository>:/home/build/dystar --rm --name=fstar foa3ucuvi85/custom-fstar-ocaml-emacs-docker:2.4-db812866 /bin/bash`
+4. Start the image: `docker run -it -v </path/to/this/repository>:/home/build/dolev-yao-star --rm --name=fstar foa3ucuvi85/fstar-ocaml-emacs:latest /bin/bash`
    (of course, you have to replace `</path/to/this/repository>` with the
    path of this repository, e.g., `/home/johndoe/dolev-yao-star`).
 
    Note: If you chose a different path inside the container (i.e., not
-   `/home/build/dystar`), make sure to set the environment variable
+   `/home/build/dolev-yao-star`), make sure to set the environment variable
    `DY_HOME` to that path (without a trailing `/`).
 
    Note 2: If you get an error along the lines of _"The container name
@@ -40,11 +40,11 @@ them from a docker image.
    change `--name=fstar` to some other name).
 
 5. Now you should see a shell prompt inside the docker
-   container. Switch to the core model directory with `cd dystar/`.
+   container. Switch to the core model directory with `cd dolev-yao-star/`.
    See the next subsections for further instructions (note that all
    verification/compilation commands in the following subsections
    assume that you start out in a shell inside the docker container in
-   the `dystar` directory).
+   the `dolev-yao-star` directory).
 
 
 ### Verify the DY* framework and protocol implementations
@@ -74,7 +74,7 @@ container.
    ocaml/test.exe`. This compiles the F\* code to OCaml and then
    compiles the OCaml code into an executable file (namely `test.exe`).
 
-3. `cd` into the subfolder `ocaml` in the protocol directory
+3. `cd` into the subfolder `ocaml-symbolic` in the protocol directory
 
 4. Run `./test.exe` to execute the test cases. This will print some
    intermediate information and at least one execution trace.

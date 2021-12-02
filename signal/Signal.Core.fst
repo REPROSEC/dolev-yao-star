@@ -67,8 +67,8 @@ let serialize_ad #i (our_ephemeral_pub_key)
     concat their_identity_pub_key
       (concat our_identity_pub_key
 	(concat (our_ephemeral_pub_key)
-	  (concat (literal_to_bytes (Nat prev_counter))
-	    (literal_to_bytes (Nat counter)))))
+	  (concat ((nat_to_bytes #signal_global_usage #i 4 prev_counter))
+	    ((nat_to_bytes #signal_global_usage #i 4 counter)))))
 
 friend Signal.Messages
 
@@ -92,7 +92,8 @@ let encrypt #i #l #p #si #vi
   assert (get_dhkey_label signal_key_usages our_ephemeral_pub_key == readers [V p si vi]);
   let ad = serialize_ad our_ephemeral_pub_key prev_counter counter their_identity_pub_key our_identity_pub_key in
   assert (ad == serialize_ad our_ephemeral_pub_key prev_counter counter their_identity_pub_key our_identity_pub_key);
-  assert (apred i msg_key plaintext ad); 
+  let aek,aeiv = msg_key in
+  assert (apred i "Signal.aead_key" aek plaintext ad); 
   let ciphertext = aead_enc msg_key plaintext ad in
   ciphertext
 
