@@ -1,0 +1,17 @@
+include ../Makefile.concrete
+
+APP_BASE_FST_FILES=Signal.Messages.fst
+APP_BASE_CMX_FILES=ocaml-concrete/Signal_Messages.cmx
+
+APP_FST_FILES=Signal.Crypto.fst Signal.Core.fst Signal.Sessions.fst Signal.X3DH.fst Signal.DR.fst Signal.Test.fst
+APP_CMX_FILES=ocaml-concrete/Signal_Crypto.cmx ocaml-concrete/Signal_Core.cmx ocaml-concrete/Signal_Sessions.cmx ocaml-concrete/Signal_X3DH.cmx ocaml-concrete/Signal_DR.cmx ocaml-concrete/Signal_Test.cmx
+
+ALL_FST_FILES=$(LIB_BASE_FST_FILES) $(APP_BASE_FST_FILES) $(LIB_FST_FILES) $(APP_FST_FILES)
+ALL_CMX_FILES=$(LIB_BASE_CMX_FILES) $(APP_BASE_CMX_FILES) $(LIB_CMX_FILES) $(APP_CMX_FILES)
+
+extract: $(ALL_FST_FILES) $(ALL_CMX_FILES)
+test: $(ALL_FST_FILES) $(ALL_ML_FILES) $(ALL_CMX_FILES) ocaml-concrete/test.exe
+
+ocaml-concrete/test.exe: $(ALL_CMX_FILES)
+	$(OCAMLOPT) $(HACL_HOME)/ml/libhaclml.cmxa $^ -o $@
+

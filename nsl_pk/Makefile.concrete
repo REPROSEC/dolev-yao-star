@@ -1,0 +1,23 @@
+include ../Makefile.concrete
+
+APP_BASE_FST_FILES=NSL.Messages.fst NSL.Sessions.fst
+APP_BASE_CMX_FILES=ocaml-concrete/NSL_Messages.cmx ocaml-concrete/NSL_Sessions.cmx
+
+APP_FST_FILES=NSL.Protocol.fst NSL.Debug.fst
+APP_CMX_FILES=ocaml-concrete/NSL_Protocol.cmx ocaml-concrete/NSL_Debug.cmx
+
+ALL_FST_FILES=$(LIB_BASE_FST_FILES) $(APP_BASE_FST_FILES) $(LIB_FST_FILES) $(APP_FST_FILES)
+ALL_CMX_FILES=$(LIB_BASE_CMX_FILES) $(APP_BASE_CMX_FILES) $(LIB_CMX_FILES) $(APP_CMX_FILES)
+
+extract: $(ALL_FST_FILES) $(ALL_CMX_FILES)
+test: $(ALL_FST_FILES) $(ALL_ML_FILES) $(ALL_CMX_FILES) ocaml-concrete/test.exe
+
+ifeq ($(OS),Windows_NT)
+  export OCAMLPATH := $(FSTAR_HOME)/bin;$(OCAMLPATH)
+else
+  export OCAMLPATH := $(FSTAR_HOME)/bin:$(OCAMLPATH)
+endif
+
+ocaml-concrete/test.exe: $(ALL_CMX_FILES)
+	$(OCAMLOPT) $(HACL_HOME)/ml/libhaclml.cmxa $^ -o $@
+

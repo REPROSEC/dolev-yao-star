@@ -1,0 +1,9 @@
+For concrete execution of various examples, we provide Makefile.concrete in each directory.
+
+First, go to `concrete/hacl-star-snapshot` and run make in there.
+
+Then, run `make -f Makefile.concrete` in the root directory.
+
+Then, run `make -f Makefile.concrete` in your example directory (e.g. `ns_pk`).
+
+Finally, run `make -f Makefile.concrete test` to run the example concretely and generate a concrete global trace.
