@@ -1,7 +1,3 @@
-# Paths inside docker container
-FSTAR_HOME ?= /home/build/FStar
-DY_HOME ?= /home/build/dolev-yao-star
-
 CACHE_DIR     ?= $(DY_HOME)/.cache/symbolic
 HINT_DIR      ?= $(DY_HOME)/.hints/symbolic
 
