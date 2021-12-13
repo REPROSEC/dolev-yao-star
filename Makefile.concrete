@@ -1,6 +1,4 @@
 # Paths inside docker container
-FSTAR_HOME ?= /home/build/FStar
-DY_HOME ?= /home/build/dolev-yao-star
 HACL_HOME = $(DY_HOME)/concrete/hacl-star-snapshot
 
 CACHE_DIR     ?= $(DY_HOME)/.cache/concrete
