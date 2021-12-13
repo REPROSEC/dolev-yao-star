@@ -414,6 +414,7 @@ val lemma_map_blocks_multi:
 
 
 #restart-solver
+#push-options "--z3rlimit 50"
 val index_map_blocks_multi:
     #a:Type0
   -> bs:size_pos
@@ -427,6 +428,7 @@ val index_map_blocks_multi:
     let j = i / bs in
     let block: lseq a bs = Seq.slice inp (j * bs) ((j + 1) * bs) in
     Seq.index (map_blocks_multi bs max n inp f) i == Seq.index (f j block) (i % bs))
+#pop-options
 
 (* A full block index *)
 unfold

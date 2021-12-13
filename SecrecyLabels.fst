@@ -2,6 +2,8 @@
 /// ===============================
 module SecrecyLabels
 
+open FStar.List.Tot
+
 let covers_is_reflexive s = ()
 
 let covers_is_transitive () = ()
