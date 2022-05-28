@@ -65,7 +65,7 @@ let ratchet_derive_aead_key0 #i #l #l' rk ss =
     (aekey,aeiv_public)
     
 let ratchet_derive_new_keys #i #l #l' rk ss =
-    let root_key:signal_root_key i l' = (expand #signal_global_usage #i #l' ss (zz #i)) <: signal_root_key i l' in 
+    let root_key:signal_root_key i l' = (expand #signal_global_usage #i #l' #l ss rk) <: signal_root_key i l' in 
     let der_key:signal_chain_key i l' = expand #signal_global_usage #i #l' root_key (zz #i) in
     (root_key, der_key)
 

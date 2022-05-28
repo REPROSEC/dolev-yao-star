@@ -105,13 +105,13 @@ val join: label -> label -> label
 /// Label for combined values: Intersection of the "intended audiences".
 val meet: label -> label -> label
 
-/// Label for unreadable values TODO DOC: Is this correct? When is this useful?
+/// Label for unreadable values
 let private_label = readers []
 let join_opt l1 l2o = match l2o with | Some x -> join l1 x | None -> l1
 
 val unversion: label -> label
 
-/// Check whether a given ``id`` is in the "intended audience" of a label. TODO DOC is this correct?
+/// Check whether a given ``id`` is in the "intended audience" of a label.
 val can_read: id -> label -> Type0
 
 /// Properties of ``can_read`` and label constructors

@@ -382,13 +382,13 @@ val extract_lemma: #p:global_usage -> #i:timestamp -> #l:label -> #l':label ->
     k:lbytes p i l{is_publishable p i k \/ (exists s. is_kdf_key p i k l s)} -> salt:lbytes p i l' ->
     Lemma (extract #p #i #l k salt == C.extract k salt) [SMTPat (extract #p #i #l k salt)]
 
-val expand: #p:global_usage -> #i:timestamp -> #l:label ->
+val expand: #p:global_usage -> #i:timestamp -> #l:label -> #l':label ->
     k:lbytes p i l{is_publishable p i k \/ (exists s. is_kdf_key p i k l s)} ->
-    info:msg p i public ->
-    k':lbytes p i l{(is_publishable p i k ==> is_publishable p i k') /\
+    info:msg p i l' ->
+    k':lbytes p i l{((is_publishable p i k) ==> is_publishable p i k') /\
                       (forall s. is_kdf_key p i k l s ==> (is_labeled p i k' l /\ get_usage p.key_usages k' == p.key_usages.kdf_expand_usage s k info))}
 
-val expand_lemma: #p:global_usage -> #i:timestamp -> #l:label -> k:lbytes p i l{is_publishable p i k \/ (exists s. is_kdf_key p i k l s)} -> info:msg p i public ->
+val expand_lemma: #p:global_usage -> #i:timestamp -> #l:label -> #l':label -> k:lbytes p i l{is_publishable p i k \/ (exists s. is_kdf_key p i k l s)} -> info:msg p i l' ->
     Lemma (expand #p #i #l k info == C.expand k info) [SMTPat (expand #p #i #l k info)]
 
 let is_dh_private_key p i b l s = is_secret p i b l (dh_usage s)

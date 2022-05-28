@@ -87,7 +87,7 @@ let rec is_valid (p:global_usage) (ts:timestamp) (b:bytes) =
                 \/ (match get_usage p.key_usages k with
                   | Some (MAC s) -> mac_pred p.usage_preds ts s k msg | _ -> False))
   | Hash msg -> is_valid p ts msg
-  | Expand k1 k2 -> is_valid p ts k1 /\ is_valid p ts k2 /\ can_flow ts (get_label p.key_usages k2) Public /\
+  | Expand k1 k2 -> is_valid p ts k1 /\ is_valid p ts k2 /\ 
                      (can_flow ts (get_label p.key_usages k1) Public \/
                      (match get_usage p.key_usages k1 with
                      | Some (KDF _) -> True | _ -> False))
@@ -226,8 +226,8 @@ let hash_lemma #pr #i #l m = ()
 let extract #pr #i #l #l' k salt = C.extract k salt
 let extract_lemma #pr #i #l #l' k salt = ()
 
-let expand #pr #i #l k info = C.expand k info
-let expand_lemma #pr #i #l k info = ()
+let expand #pr #i #l #l' k info = C.expand k info
+let expand_lemma #pr #i #l #l' k info = ()
 
 let dh_pk #pr #i #l sk = C.dh_pk sk
 let dh_pk_lemma #pr #i #l sk = ()

@@ -8,6 +8,14 @@ open CryptoLib
  
 module A = LabeledCryptoAPI
 
+(* PROTOCOL *)
+(*
+1. I -> R : MSG1 | I | g^x
+2. R -> I : MSG2 | R | g^y | sign (skR, MSG2 | I | g^x | g^y)
+3. I -> R : MSG3 | sign (skI, MSG3 | R | g^x | g^y)
+*)
+
+
 (* Events *)
 
 let initiate (a:principal) (b:principal) (gx:bytes) : event = ("Initiate",[(string_to_bytes a);(string_to_bytes b);gx])
