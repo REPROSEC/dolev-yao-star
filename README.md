@@ -14,7 +14,7 @@ following protocols: ISO KEM, ISO DH, and Needham-Schroeder(-Lowe).
 ## Running the case studies
 
 The easiest way to try out the DY\* case studies quickly is to run
-them from a docker image.
+them from a docker image:
 
 ### Preparation
 
@@ -23,24 +23,14 @@ them from a docker image.
 
 2. Make sure that the docker service is started
 
-3. Pull the docker image for the case studies: in a terminal, run
-   `docker pull foa3ucuvi85/fstar-ocaml-emacs:latest`
+3. Run `./start_dev_env.sh`
 
-4. Start the image: `docker run -it -v </path/to/this/repository>:/home/build/dolev-yao-star --rm --name=fstar foa3ucuvi85/fstar-ocaml-emacs:latest /bin/bash`
-   (of course, you have to replace `</path/to/this/repository>` with the
-   path of this repository, e.g., `/home/johndoe/dolev-yao-star`).
+   Note: If you get an error along the lines of _"The container name
+   "fstar-emacs" is already in use by container [...]"_, run `docker rm
+   fstar-emacs` and then try again.
 
-   Note: If you chose a different path inside the container (i.e., not
-   `/home/build/dolev-yao-star`), make sure to set the environment variable
-   `DY_HOME` to that path (without a trailing `/`).
-
-   Note 2: If you get an error along the lines of _"The container name
-   "/fstar" is already in use by container [...]"_, run `docker rm
-   fstar` and then try again (or rename the new container, i.e.,
-   change `--name=fstar` to some other name).
-
-5. Now you should see a shell prompt inside the docker
-   container. Switch to the core model directory with `cd dolev-yao-star/`.
+4. Now you should see a shell prompt inside the docker
+   container, in the `dolev-yao-star` directory.
    See the next subsections for further instructions (note that all
    verification/compilation commands in the following subsections
    assume that you start out in a shell inside the docker container in
@@ -70,9 +60,9 @@ container.
 
 1. Verify (typecheck) the core model and protocol as described above.
 
-2. `cd` into the protocol directory and run `make
-   ocaml/test.exe`. This compiles the F\* code to OCaml and then
-   compiles the OCaml code into an executable file (namely `test.exe`).
+2. `cd` into the protocol directory and run `make -B test`. This extracts
+   the F\* code to OCaml and then compiles the OCaml code into an executable
+   file (namely `test.exe`).
 
 3. `cd` into the subfolder `ocaml-symbolic` in the protocol directory
 
